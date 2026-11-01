@@ -42,7 +42,8 @@ NotificationContent contentFromRemote(
     data: data,
     imageUrl: hasImage ? image : null,
     imageStyle: hasImage ? ImageStyle.bigPicture : ImageStyle.none,
-    extras: const {},
+    // Native tap payload uses this as its `id` so taps dedupe by messageId.
+    extras: m.messageId != null ? {'messageId': m.messageId} : const {},
   );
 }
 

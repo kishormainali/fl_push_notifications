@@ -125,6 +125,17 @@ void main() {
     expect(stableLocalId('abc'), greaterThanOrEqualTo(0));
   });
 
+  test('content carries the FCM messageId in extras for the tap '
+      'payload', () async {
+    await run(const RemoteMessage(messageId: 'mid-1', data: {'title': 'a'}));
+    expect(host.shownNotifications.single.extras, {'messageId': 'mid-1'});
+    final c = contentFromRemote(
+      const RemoteMessage(data: {'title': 'a'}),
+      channelId: 'default',
+    );
+    expect(c.extras, isEmpty);
+  });
+
   test('same messageId twice shows once', () async {
     const m = RemoteMessage(messageId: 'dup', data: {'title': 'a'});
     await run(m);

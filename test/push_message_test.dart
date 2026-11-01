@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:push_notifications/src/push_message.dart';
@@ -47,6 +49,7 @@ void main() {
     expect(r.body, 'b');
     expect(r.data, {'k': 'v'});
     expect(r.imageUrl, 'http://x/y.png');
+    expect(r.channelId, 'c');
     expect(r.source, MessageSource.local);
     expect(r.appState, PushAppState.background);
   });
@@ -144,6 +147,49 @@ void main() {
       }
     },
   );
+
+  test('fromLocalPayload reads channelId, falling back to the default', () {
+    final withChannel = PushMessage.fromLocalPayload(
+      '{"id":"1","channelId":"chat"}',
+      PushAppState.background,
+      defaultChannelId: 'dflt',
+    );
+    expect(withChannel.channelId, 'chat');
+    for (final p in [
+      '{"id":"2"}',
+      '{"id":"3","channelId":null}',
+      '{"id":"4","channelId":""}',
+    ]) {
+      final m = PushMessage.fromLocalPayload(
+        p,
+        PushAppState.background,
+        defaultChannelId: 'dflt',
+      );
+      expect(m.channelId, 'dflt', reason: p);
+    }
+  });
+
+  test('toLocalPayload includes channelId', () {
+    final m = PushMessage(
+      id: 'i',
+      channelId: 'chat',
+      source: MessageSource.remote,
+      appState: PushAppState.foreground,
+    );
+    expect(jsonDecode(m.toLocalPayload())['channelId'], 'chat');
+  });
+
+  test('native payload contract parses into a PushMessage', () {
+    const native =
+        '{"id":"fcm-1","title":"T","body":null,"data":{"k":"v"},'
+        '"imageUrl":null,"channelId":"default"}';
+    final m = PushMessage.fromLocalPayload(native, PushAppState.background);
+    expect(
+      (m.id, m.title, m.body, m.imageUrl, m.channelId),
+      ('fcm-1', 'T', null, null, 'default'),
+    );
+    expect(m.data, {'k': 'v'});
+  });
 
   test('tap with unknown channel is still delivered', () async {
     final seen = <String>[];

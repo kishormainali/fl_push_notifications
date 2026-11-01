@@ -114,13 +114,16 @@ class PushMessage {
             ? rawData.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''))
             : <String, String>{};
         final id = j['id']?.toString();
+        final channel = j['channelId']?.toString();
         return PushMessage(
           id: (id == null || id.isEmpty) ? _generateId() : id,
           title: j['title']?.toString(),
           body: j['body']?.toString(),
           data: data,
           imageUrl: j['imageUrl']?.toString(),
-          channelId: defaultChannelId,
+          channelId: (channel == null || channel.isEmpty)
+              ? defaultChannelId
+              : channel,
           source: MessageSource.local,
           appState: state,
           raw: payload,
@@ -144,5 +147,6 @@ class PushMessage {
     'body': body,
     'data': data,
     'imageUrl': imageUrl,
+    'channelId': channelId,
   });
 }

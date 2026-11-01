@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.kishormainali.push_notifications">
 
+  <!-- Android 13+ runtime permission for posting notifications. -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
   <!-- Launcher badge permissions (best effort, vendor specific). -->
   <uses-permission android:name="com.sec.android.provider.badge.permission.READ" />
   <uses-permission android:name="com.sec.android.provider.badge.permission.WRITE" />

@@ -1,35 +1,37 @@
 package com.kishormainali.push_notifications
 
-/**
- * Native implementation of [PushHostApi]. Badge, background config and launch
- * id are implemented; channels, display, image download and launch payload are
- * stubs until their owning tasks replace them.
- */
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/** Native implementation of [PushHostApi]. */
 class PushHostApiImpl(
     private val badge: BadgeHandler,
     private val storage: PushStorage,
+    private val channels: ChannelManager,
+    private val presenter: NotificationPresenter<*>,
+    private val downloader: ImageDownloader,
+    private val taps: TapPayloadHolder,
 ) : PushHostApi {
-    private fun notImplemented(): Nothing =
-        throw FlutterError("not-implemented", "Not implemented yet", null)
-
     override fun isBadgeSupported(): Boolean = badge.isBadgeSupported()
     override fun setBadgeCount(count: Long) = badge.setBadgeCount(count)
     override fun getBadgeCount(): Long? = badge.getBadgeCount()
     override fun clearBadge() = badge.clearBadge()
     override fun incrementBadge(): Long = badge.incrementBadge()
-    override fun createChannel(c: ChannelConfig) = notImplemented()
-    override fun deleteChannel(id: String) = notImplemented()
+    override fun createChannel(c: ChannelConfig) = channels.create(c)
+    override fun deleteChannel(id: String) = channels.delete(id)
     override fun getLastLaunchId(): String? = storage.getLastLaunchId()
     override fun setLastLaunchId(id: String) = storage.setLastLaunchId(id)
     override fun saveBackgroundConfig(config: BackgroundConfigMsg) =
         storage.saveBackgroundConfig(config)
     override fun loadBackgroundConfig(): BackgroundConfigMsg? = storage.loadBackgroundConfig()
-    override fun consumeLaunchPayload(): String? = notImplemented()
-    override suspend fun showNotification(content: NotificationContent) = notImplemented()
+    override fun consumeLaunchPayload(): String? = taps.consumeLaunchPayload()
+    override suspend fun showNotification(content: NotificationContent) = presenter.show(content)
     override suspend fun downloadImage(
         url: String,
         timeoutMs: Long,
         maxBytes: Long,
         httpsOnly: Boolean,
-    ): String? = notImplemented()
+    ): String? = withContext(Dispatchers.IO) {
+        downloader.download(url, timeoutMs, maxBytes, httpsOnly)?.absolutePath
+    }
 }
