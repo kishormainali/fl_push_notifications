@@ -52,7 +52,8 @@ class PushNotifications {
   final LinkedHashSet<String> _displayed = LinkedHashSet<String>();
   static const int _displayedCapacity = 50;
 
-  bool _initialized = false;
+  Future<void>? _initFuture;
+  final List<StreamSubscription<Object?>> _subs = [];
   bool _showForeground = true;
   String _defaultChannelId = 'default';
   String _channelKey = 'channel_id';
@@ -71,8 +72,40 @@ class PushNotifications {
     BadgeConfig? badge,
     String imageKey = 'image',
     bool imageHttpsOnly = true,
+  }) {
+    // Repeat and concurrent calls share the in-flight (or finished) future. A
+    // failure clears it so a retry can run again.
+    final existing = _initFuture;
+    if (existing != null) return existing;
+    final f = _init(
+      decisionMaker: decisionMaker,
+      channels: channels,
+      defaultChannelId: defaultChannelId,
+      channelKey: channelKey,
+      showForegroundNotifications: showForegroundNotifications,
+      badge: badge,
+      imageKey: imageKey,
+    );
+    _initFuture = f;
+    f.catchError((Object _) {
+      if (identical(_initFuture, f)) _initFuture = null;
+      for (final sub in _subs) {
+        unawaited(sub.cancel());
+      }
+      _subs.clear();
+    });
+    return f;
+  }
+
+  Future<void> _init({
+    required DecisionMaker decisionMaker,
+    required List<PushChannel> channels,
+    required String defaultChannelId,
+    required String channelKey,
+    required bool showForegroundNotifications,
+    required BadgeConfig? badge,
+    required String imageKey,
   }) async {
-    if (_initialized) return;
     final list = channels.isEmpty
         ? [PushChannel(id: defaultChannelId, name: 'General')]
         : channels;
@@ -83,7 +116,6 @@ class PushNotifications {
         'must be one of the configured channels',
       );
     }
-    _initialized = true;
     _dispatcher.decisionMaker = decisionMaker;
     _defaultChannelId = defaultChannelId;
     _channelKey = channelKey;
@@ -109,11 +141,13 @@ class PushNotifications {
     _messaging.setBackgroundHandler(pushBackgroundHandler);
     _registerFlutterApi(_NativeTapHandler(_onNativeTap));
 
-    _messaging.onMessage.listen(_onForegroundMessage);
-    _messaging.onMessageOpenedApp.listen(
-      (m) => _dispatcher.handleTap(_fromRemote(m, PushAppState.background)),
-    );
-    _messaging.onTokenRefresh.listen(_tokens.add);
+    _subs.addAll([
+      _messaging.onMessage.listen(_onForegroundMessage),
+      _messaging.onMessageOpenedApp.listen(
+        (m) => _dispatcher.handleTap(_fromRemote(m, PushAppState.background)),
+      ),
+      _messaging.onTokenRefresh.listen(_tokens.add),
+    ]);
 
     await _deliverLaunchTaps();
   }
@@ -233,7 +267,11 @@ class PushNotifications {
   }
 
   Future<void> _deliverLaunchTaps() async {
-    final lastId = await _host.getLastLaunchId();
+    final lastIds = (await _host.getLastLaunchId() ?? '')
+        .split('\n')
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    final delivered = <String>[];
     final launch = <PushMessage>[];
     final initial = await _messaging.getInitialMessage();
     if (initial != null) {
@@ -248,12 +286,19 @@ class PushNotifications {
       launch.add(_fromPayload(nativePayload, PushAppState.terminated));
     }
     for (final m in launch) {
-      if (m.id == lastId) {
+      if (lastIds.contains(m.id)) {
         debugPrint('push_notifications: stale launch tap ${m.id} dropped');
         continue;
       }
       await _dispatcher.handleTap(m);
-      await _host.setLastLaunchId(m.id);
+      delivered.add(m.id);
+    }
+    // Tradeoff: ids are persisted as soon as the tap is handed to the
+    // dispatcher, which may still hold it queued before markReady(). All ids
+    // from this init are stored (newline-joined) so a later cold start that
+    // re-reports any of them is treated as stale.
+    if (delivered.isNotEmpty) {
+      await _host.setLastLaunchId(delivered.join('\n'));
     }
   }
 }

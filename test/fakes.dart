@@ -87,14 +87,24 @@ class FakeHostApi extends PushHostApi {
   String? nativeLaunchPayload;
   final channels = <ChannelConfig>[];
   final deleted = <String>[];
+  bool failCreate = false;
+  bool failLaunch = false;
   final setLaunchIds = <String>[];
 
   @override
-  Future<void> createChannel(ChannelConfig c) async => channels.add(c);
+  Future<void> createChannel(ChannelConfig c) async {
+    if (failCreate) throw StateError('create failed');
+    channels.add(c);
+  }
+
   @override
   Future<void> deleteChannel(String id) async => deleted.add(id);
   @override
-  Future<String?> getLastLaunchId() async => lastLaunchId;
+  Future<String?> getLastLaunchId() async {
+    if (failLaunch) throw StateError('launch failed');
+    return lastLaunchId;
+  }
+
   @override
   Future<void> setLastLaunchId(String id) async {
     lastLaunchId = id;

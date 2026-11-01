@@ -274,6 +274,64 @@ void main() {
     expect(taps.single.id, 'keep');
   });
 
+  test(
+    'init failure then retry succeeds with exactly one set of listeners',
+    () async {
+      final p = build();
+      host.failCreate = true;
+      await expectLater(p.init(decisionMaker: taps.add), throwsA(anything));
+      host.failCreate = false;
+      await p.init(decisionMaker: taps.add);
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(rm('r1'));
+      await pump();
+      expect(emitted, hasLength(1));
+      expect(local.shown, hasLength(1));
+    },
+  );
+
+  test(
+    'failure after listeners attach does not duplicate them on retry',
+    () async {
+      final p = build();
+      host.failLaunch = true;
+      await expectLater(p.init(decisionMaker: taps.add), throwsA(anything));
+      host.failLaunch = false;
+      await p.init(decisionMaker: taps.add);
+      msg.onMessageCtl.add(rm('r2'));
+      await pump();
+      expect(local.shown, hasLength(1));
+    },
+  );
+
+  test('two concurrent init calls run setup once', () async {
+    final p = build();
+    await Future.wait([
+      p.init(decisionMaker: taps.add),
+      p.init(decisionMaker: taps.add),
+    ]);
+    expect(host.channels, hasLength(1));
+    expect(msg.initialCalls, 1);
+  });
+
+  test(
+    'all launch ids are persisted; restart does not redeliver either',
+    () async {
+      msg.initial = rm('a');
+      local.launch = '{"id":"b"}';
+      await started();
+      expect(taps.map((m) => m.id), ['a', 'b']);
+      expect(host.lastLaunchId!.split('\n'), ['a', 'b']);
+      // Simulated restart: same persisted ids, getInitialMessage still 'a'.
+      taps = [];
+      local.launch = null;
+      msg = FakeMessagingPort()..initial = rm('a');
+      await started();
+      expect(taps, isEmpty);
+    },
+  );
+
   test('registers background entry points', () async {
     await started();
     expect(msg.backgroundHandler, isNotNull);
