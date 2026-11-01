@@ -29,4 +29,4 @@
 * `init` reads the app lifecycle through `WidgetsBinding` (to label tap
   `appState`), so call `WidgetsFlutterBinding.ensureInitialized()` before it
   (already needed for `Firebase.initializeApp()`).
-* docs: setup aligned with Firebase docs
+* docs: setup aligned with Firebase docs (FID enable flags, method swizzling, iOS Background fetch and Remote notifications modes, Android 7.0+/Play services, auto-init); example enables FIDs
