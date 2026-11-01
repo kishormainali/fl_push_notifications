@@ -28,8 +28,19 @@ String resolveChannelId(
   if (candidate == null || candidate.isEmpty) return defaultId;
   if (known.contains(candidate)) return candidate;
   debugPrint(
-      'push_notifications: unknown channel "$candidate", using "$defaultId"');
+    'push_notifications: unknown channel "$candidate", using "$defaultId"',
+  );
   return defaultId;
+}
+
+/// Stable positive 31-bit FNV-1a hash of a message id, used as the local
+/// notification id.
+int stableLocalId(String id) {
+  var h = 0x811c9dc5;
+  for (final u in id.codeUnits) {
+    h = ((h ^ u) * 0x01000193) & 0xffffffff;
+  }
+  return h & 0x7fffffff;
 }
 
 class PushMessage {
@@ -67,12 +78,14 @@ class PushMessage {
     final data = m.data.map((k, v) => MapEntry(k, v?.toString() ?? ''));
     final channelId = knownChannels == null
         ? (m.notification?.android?.channelId ??
-            m.data[channelKey]?.toString() ??
-            defaultChannelId)
-        : resolveChannelId(m,
+              m.data[channelKey]?.toString() ??
+              defaultChannelId)
+        : resolveChannelId(
+            m,
             known: knownChannels,
             defaultId: defaultChannelId,
-            channelKey: channelKey);
+            channelKey: channelKey,
+          );
     return PushMessage(
       id: m.messageId ?? _generateId(),
       title: m.notification?.title,
@@ -126,10 +139,10 @@ class PushMessage {
   }
 
   String toLocalPayload() => jsonEncode({
-        'id': id,
-        'title': title,
-        'body': body,
-        'data': data,
-        'imageUrl': imageUrl,
-      });
+    'id': id,
+    'title': title,
+    'body': body,
+    'data': data,
+    'imageUrl': imageUrl,
+  });
 }

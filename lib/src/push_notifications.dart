@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:ui' show PluginUtilities;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -58,7 +59,6 @@ class PushNotifications {
   String _defaultChannelId = 'default';
   String _channelKey = 'channel_id';
   String _imageKey = 'image';
-  // ignore: unused_field
   BadgeConfig _badge = BadgeConfig();
   final Set<String> _channelIds = {};
 
@@ -85,6 +85,8 @@ class PushNotifications {
       showForegroundNotifications: showForegroundNotifications,
       badge: badge,
       imageKey: imageKey,
+      imageHttpsOnly: imageHttpsOnly,
+      onBackgroundMessage: onBackgroundMessage,
     );
     _initFuture = f;
     f.catchError((Object _) {
@@ -105,6 +107,8 @@ class PushNotifications {
     required bool showForegroundNotifications,
     required BadgeConfig? badge,
     required String imageKey,
+    required bool imageHttpsOnly,
+    required BackgroundMessageHook? onBackgroundMessage,
   }) async {
     final list = channels.isEmpty
         ? [PushChannel(id: defaultChannelId, name: 'General')]
@@ -138,6 +142,7 @@ class PushNotifications {
         sound: true,
       );
     }
+    await _saveBackgroundConfig(imageHttpsOnly, onBackgroundMessage);
     _messaging.setBackgroundHandler(pushBackgroundHandler);
     _registerFlutterApi(_NativeTapHandler(_onNativeTap));
 
@@ -150,6 +155,35 @@ class PushNotifications {
     ]);
 
     await _deliverLaunchTaps();
+  }
+
+  Future<void> _saveBackgroundConfig(
+    bool imageHttpsOnly,
+    BackgroundMessageHook? hook,
+  ) async {
+    int? handle;
+    if (hook != null) {
+      handle = PluginUtilities.getCallbackHandle(hook)?.toRawHandle();
+      if (handle == null) {
+        debugPrint(
+          'push_notifications: onBackgroundMessage must be a top-level '
+          'function; the hook will not run in the background isolate',
+        );
+      }
+    }
+    await _host.saveBackgroundConfig(
+      BackgroundConfigMsg(
+        defaultChannelId: _defaultChannelId,
+        channelKey: _channelKey,
+        imageKey: _imageKey,
+        titleKey: 'title',
+        bodyKey: 'body',
+        imageHttpsOnly: imageHttpsOnly,
+        autoIncrementOnPush: _badge.autoIncrementOnPush,
+        autoClearOnForeground: _badge.autoClearOnForeground,
+        hookHandle: handle,
+      ),
+    );
   }
 
   final StreamController<String> _tokens = StreamController<String>.broadcast();
@@ -252,18 +286,9 @@ class PushNotifications {
     }
     final m = _fromRemote(rm, PushAppState.foreground);
     if (!isIOS && _showForeground && (m.title != null || m.body != null)) {
-      await _local.show(m, id: _localId(m.id));
+      await _local.show(m, id: stableLocalId(m.id));
     }
     _foreground.add(m);
-  }
-
-  /// Stable positive 31-bit FNV-1a hash of the message id.
-  static int _localId(String id) {
-    var h = 0x811c9dc5;
-    for (final u in id.codeUnits) {
-      h = ((h ^ u) * 0x01000193) & 0xffffffff;
-    }
-    return h & 0x7fffffff;
   }
 
   Future<void> _deliverLaunchTaps() async {

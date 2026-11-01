@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,8 +34,11 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse({
+  Object? result,
+  PlatformException? error,
+  bool empty = false,
+}) {
   if (empty) {
     return <Object?>[];
   }
@@ -44,6 +47,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -56,8 +60,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -106,11 +111,7 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
-enum ImageStyle {
-  none,
-  bigPicture;
-}
+enum ImageStyle { none, bigPicture }
 
 class NotificationContent {
   NotificationContent({
@@ -158,7 +159,8 @@ class NotificationContent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static NotificationContent decode(Object result) {
     result as List<Object?>;
@@ -184,7 +186,15 @@ class NotificationContent {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(title, other.title) && _deepEquals(body, other.body) && _deepEquals(channelId, other.channelId) && _deepEquals(data, other.data) && _deepEquals(imageUrl, other.imageUrl) && _deepEquals(imageStyle, other.imageStyle) && _deepEquals(badge, other.badge) && _deepEquals(extras, other.extras);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(title, other.title) &&
+        _deepEquals(body, other.body) &&
+        _deepEquals(channelId, other.channelId) &&
+        _deepEquals(data, other.data) &&
+        _deepEquals(imageUrl, other.imageUrl) &&
+        _deepEquals(imageStyle, other.imageStyle) &&
+        _deepEquals(badge, other.badge) &&
+        _deepEquals(extras, other.extras);
   }
 
   @override
@@ -239,7 +249,8 @@ class ChannelConfig {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ChannelConfig decode(Object result) {
     result as List<Object?>;
@@ -264,7 +275,14 @@ class ChannelConfig {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(name, other.name) && _deepEquals(channelDescription, other.channelDescription) && _deepEquals(importance, other.importance) && _deepEquals(playSound, other.playSound) && _deepEquals(enableVibration, other.enableVibration) && _deepEquals(showBadge, other.showBadge) && _deepEquals(groupId, other.groupId);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(channelDescription, other.channelDescription) &&
+        _deepEquals(importance, other.importance) &&
+        _deepEquals(playSound, other.playSound) &&
+        _deepEquals(enableVibration, other.enableVibration) &&
+        _deepEquals(showBadge, other.showBadge) &&
+        _deepEquals(groupId, other.groupId);
   }
 
   @override
@@ -323,7 +341,8 @@ class BackgroundConfigMsg {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static BackgroundConfigMsg decode(Object result) {
     result as List<Object?>;
@@ -349,7 +368,15 @@ class BackgroundConfigMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(defaultChannelId, other.defaultChannelId) && _deepEquals(channelKey, other.channelKey) && _deepEquals(imageKey, other.imageKey) && _deepEquals(titleKey, other.titleKey) && _deepEquals(bodyKey, other.bodyKey) && _deepEquals(imageHttpsOnly, other.imageHttpsOnly) && _deepEquals(autoIncrementOnPush, other.autoIncrementOnPush) && _deepEquals(autoClearOnForeground, other.autoClearOnForeground) && _deepEquals(hookHandle, other.hookHandle);
+    return _deepEquals(defaultChannelId, other.defaultChannelId) &&
+        _deepEquals(channelKey, other.channelKey) &&
+        _deepEquals(imageKey, other.imageKey) &&
+        _deepEquals(titleKey, other.titleKey) &&
+        _deepEquals(bodyKey, other.bodyKey) &&
+        _deepEquals(imageHttpsOnly, other.imageHttpsOnly) &&
+        _deepEquals(autoIncrementOnPush, other.autoIncrementOnPush) &&
+        _deepEquals(autoClearOnForeground, other.autoClearOnForeground) &&
+        _deepEquals(hookHandle, other.hookHandle);
   }
 
   @override
@@ -362,7 +389,6 @@ class BackgroundConfigMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -370,16 +396,16 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is ImageStyle) {
+    } else if (value is ImageStyle) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is NotificationContent) {
+    } else if (value is NotificationContent) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is ChannelConfig) {
+    } else if (value is ChannelConfig) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is BackgroundConfigMsg) {
+    } else if (value is BackgroundConfigMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
@@ -410,20 +436,21 @@ class PushHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   PushHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<bool> isBadgeSupported() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.isBadgeSupported$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.isBadgeSupported$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -433,34 +460,36 @@ class PushHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   Future<void> setBadgeCount(int count) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.setBadgeCount$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.setBadgeCount$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[count]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[count],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<int?> getBadgeCount() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.getBadgeCount$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.getBadgeCount$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -470,16 +499,16 @@ class PushHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as int?;
   }
 
   Future<void> clearBadge() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.clearBadge$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.clearBadge$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -489,15 +518,15 @@ class PushHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<int> incrementBadge() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.incrementBadge$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.incrementBadge$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -507,52 +536,56 @@ class PushHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as int;
   }
 
   Future<void> createChannel(ChannelConfig c) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.createChannel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.createChannel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[c]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[c],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> deleteChannel(String id) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.deleteChannel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.deleteChannel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[id],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<String?> getLastLaunchId() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.getLastLaunchId$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.getLastLaunchId$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -562,52 +595,56 @@ class PushHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
   Future<void> setLastLaunchId(String id) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.setLastLaunchId$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.setLastLaunchId$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[id],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> saveBackgroundConfig(BackgroundConfigMsg config) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.saveBackgroundConfig$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.saveBackgroundConfig$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[config]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[config],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<BackgroundConfigMsg?> loadBackgroundConfig() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.loadBackgroundConfig$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.loadBackgroundConfig$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -617,16 +654,16 @@ class PushHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as BackgroundConfigMsg?;
   }
 
   Future<String?> consumeLaunchPayload() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.consumeLaunchPayload$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.consumeLaunchPayload$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -636,48 +673,56 @@ class PushHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
   Future<void> showNotification(NotificationContent content) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.showNotification$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.showNotification$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[content]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[content],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
-  Future<String?> downloadImage(String url, int timeoutMs, int maxBytes, bool httpsOnly) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.push_notifications.PushHostApi.downloadImage$pigeonVar_messageChannelSuffix';
+  Future<String?> downloadImage(
+    String url,
+    int timeoutMs,
+    int maxBytes,
+    bool httpsOnly,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.push_notifications.PushHostApi.downloadImage$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url, timeoutMs, maxBytes, httpsOnly]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[url, timeoutMs, maxBytes, httpsOnly],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 }
@@ -687,16 +732,20 @@ abstract class PushFlutterApi {
 
   void onNativeTap(String payload);
 
-  static void setUp(PushFlutterApi? api, {
-    BinaryMessenger? binaryMessenger, 
+  static void setUp(
+    PushFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
     String messageChannelSuffix = '',
-  }) 
-{
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  }) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty
+        ? '.$messageChannelSuffix'
+        : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.push_notifications.PushFlutterApi.onNativeTap$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.push_notifications.PushFlutterApi.onNativeTap$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -708,8 +757,10 @@ abstract class PushFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }

@@ -60,6 +60,33 @@ void main() {
     nativeApi = null;
   });
 
+  test(
+    'init persists background config once with the configured values',
+    () async {
+      final p = build();
+      await p.init(
+        decisionMaker: taps.add,
+        channels: [PushChannel(id: 'c1', name: 'C')],
+        defaultChannelId: 'c1',
+        channelKey: 'ck',
+        imageKey: 'pic',
+        imageHttpsOnly: false,
+        badge: BadgeConfig(autoIncrementOnPush: true),
+      );
+      expect(host.savedConfigs, hasLength(1));
+      final c = host.savedConfigs.single;
+      expect(c.defaultChannelId, 'c1');
+      expect(c.channelKey, 'ck');
+      expect(c.imageKey, 'pic');
+      expect(c.titleKey, 'title');
+      expect(c.bodyKey, 'body');
+      expect(c.imageHttpsOnly, isFalse);
+      expect(c.autoIncrementOnPush, isTrue);
+      expect(c.autoClearOnForeground, isFalse);
+      expect(c.hookHandle, isNull);
+    },
+  );
+
   test('init reads getInitialMessage and local launch payload once, as '
       'terminated taps, queued until markReady', () async {
     msg.initial = rm('a');

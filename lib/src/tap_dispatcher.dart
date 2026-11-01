@@ -46,8 +46,10 @@ class TapDispatcher {
   Future<void> _flush() async {
     if (_decisionMaker == null) {
       if (_queue.isNotEmpty) {
-        debugPrint('push_notifications: ERROR tap received but no '
-            'decisionMaker is set; ${_queue.length} tap(s) remain queued.');
+        debugPrint(
+          'push_notifications: ERROR tap received but no '
+          'decisionMaker is set; ${_queue.length} tap(s) remain queued.',
+        );
       }
       return;
     }

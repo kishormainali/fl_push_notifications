@@ -1,10 +1,131 @@
+import 'dart:collection';
+import 'dart:ui' show CallbackHandle, PluginUtilities;
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// FCM background entry point. Filled in by a later task.
-@pragma('vm:entry-point')
-Future<void> pushBackgroundHandler(RemoteMessage m) async {}
+import 'messages.g.dart';
+import 'push_message.dart';
 
-/// Local notification background tap entry point. Filled in by a later task.
+/// FCM background entry point (runs in a background isolate).
 @pragma('vm:entry-point')
-Future<void> pushLocalBackgroundTap(NotificationResponse r) async {}
+Future<void> pushBackgroundHandler(RemoteMessage m) =>
+    handleBackgroundMessage(m);
+
+/// Local notification background tap entry point. Action buttons are out of
+/// scope for v1, so this only logs.
+@pragma('vm:entry-point')
+Future<void> pushLocalBackgroundTap(NotificationResponse r) async {
+  debugPrint('push_notifications: background tap ${r.id} ignored');
+}
+
+/// Builds the native notification content for a data-only [m].
+NotificationContent contentFromRemote(
+  RemoteMessage m, {
+  String imageKey = 'image',
+  String titleKey = 'title',
+  String bodyKey = 'body',
+  required String channelId,
+}) {
+  final data = m.data.map(
+    (k, v) => MapEntry<String?, String?>(k, v?.toString()),
+  );
+  final image = m.data[imageKey]?.toString();
+  final hasImage = image != null && image.isNotEmpty;
+  return NotificationContent(
+    id: stableLocalId(m.messageId ?? ''),
+    title: m.data[titleKey]?.toString(),
+    body: m.data[bodyKey]?.toString(),
+    channelId: channelId,
+    data: data,
+    imageUrl: hasImage ? image : null,
+    imageStyle: hasImage ? ImageStyle.bigPicture : ImageStyle.none,
+    extras: const {},
+  );
+}
+
+final LinkedHashSet<String> _seen = LinkedHashSet<String>();
+const int _seenCapacity = 50;
+
+Future<void> _defaultInitFirebase() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+}
+
+Future<void> Function(RemoteMessage)? _defaultResolveHook(int handle) {
+  final cb = PluginUtilities.getCallbackFromHandle(
+    CallbackHandle.fromRawHandle(handle),
+  );
+  return cb as Future<void> Function(RemoteMessage)?;
+}
+
+/// Testable body of [pushBackgroundHandler]. Never throws.
+Future<void> handleBackgroundMessage(
+  RemoteMessage m, {
+  PushHostApi? host,
+  Future<void> Function()? initFirebase,
+  Future<void> Function(RemoteMessage)? Function(int handle)? resolveHook,
+}) async {
+  try {
+    await (initFirebase ?? _defaultInitFirebase)();
+    final api = host ?? PushHostApi();
+    final config = await api.loadBackgroundConfig();
+    final defaultChannel = config?.defaultChannelId ?? 'default';
+    final channelKey = config?.channelKey ?? 'channel_id';
+
+    final id = m.messageId;
+    var duplicate = false;
+    if (id != null) {
+      duplicate = !_seen.add(id);
+      while (_seen.length > _seenCapacity) {
+        _seen.remove(_seen.first);
+      }
+    }
+
+    // A notification block is displayed by the OS; never display twice.
+    if (m.notification == null && !duplicate) {
+      final content = contentFromRemote(
+        m,
+        imageKey: config?.imageKey ?? 'image',
+        titleKey: config?.titleKey ?? 'title',
+        bodyKey: config?.bodyKey ?? 'body',
+        channelId: m.data[channelKey]?.toString().isNotEmpty == true
+            ? m.data[channelKey].toString()
+            : defaultChannel,
+      );
+      final empty =
+          (content.title ?? '').isEmpty && (content.body ?? '').isEmpty;
+      if (empty) {
+        debugPrint('push_notifications: data-only message has no title/body');
+      } else {
+        try {
+          await api.showNotification(content);
+        } catch (e) {
+          debugPrint('push_notifications: showNotification failed: $e');
+        }
+      }
+    }
+
+    if (config?.autoIncrementOnPush ?? false) {
+      try {
+        await api.incrementBadge();
+      } catch (e) {
+        debugPrint('push_notifications: incrementBadge failed: $e');
+      }
+    }
+
+    final handle = config?.hookHandle;
+    if (handle != null) {
+      try {
+        final hook = (resolveHook ?? _defaultResolveHook)(handle);
+        await hook?.call(m);
+      } catch (e) {
+        debugPrint('push_notifications: background hook failed: $e');
+      }
+    }
+  } catch (e) {
+    debugPrint('push_notifications: background handler failed: $e');
+  }
+}

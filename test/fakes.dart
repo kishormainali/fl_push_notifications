@@ -90,6 +90,25 @@ class FakeHostApi extends PushHostApi {
   bool failCreate = false;
   bool failLaunch = false;
   final setLaunchIds = <String>[];
+  final savedConfigs = <BackgroundConfigMsg>[];
+  BackgroundConfigMsg? storedConfig;
+  final shownNotifications = <NotificationContent>[];
+  int badgeIncrements = 0;
+  bool failShow = false;
+
+  @override
+  Future<void> saveBackgroundConfig(BackgroundConfigMsg config) async =>
+      savedConfigs.add(config);
+  @override
+  Future<BackgroundConfigMsg?> loadBackgroundConfig() async => storedConfig;
+  @override
+  Future<void> showNotification(NotificationContent content) async {
+    if (failShow) throw StateError('show failed');
+    shownNotifications.add(content);
+  }
+
+  @override
+  Future<int> incrementBadge() async => ++badgeIncrements;
 
   @override
   Future<void> createChannel(ChannelConfig c) async {
