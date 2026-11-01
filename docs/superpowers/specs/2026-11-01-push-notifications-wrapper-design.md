@@ -38,7 +38,7 @@ foreground, background and terminated states on Android and iOS.
 Each is handled by a specific mechanism and pinned by a test:
 
 - **Silently dropping a tap.** With no decision maker set, log loudly and keep the event queued. A decision-maker exception is caught and logged and never blocks later taps. A tap whose payload cannot be parsed (corrupt local payload, unknown channel) is still delivered as a minimal `PushMessage` rather than discarded. Only an exact duplicate id is dropped, and that drop is logged at debug level.
-- **Showing the same notification twice.** (a) iOS foreground: OS presentation only, never a local one as well. (b) A message with a `notification` block is never re-displayed by the background handler. (c) Android foreground shows a local notification only (FCM shows none). (d) The same FCM `messageId` arriving twice is displayed once (LRU of displayed ids). (e) Local notification ids are derived from the message id, so a replay replaces the existing notification instead of stacking.
+- **Showing the same notification twice.** (a) iOS foreground: a message with a `notification` block uses OS presentation only, never a package-shown one as well; a data-only message (which the OS does not present) is shown natively by the package, once. (b) A message with a `notification` block is never re-displayed by the background handler. (c) Android foreground shows a local notification only (FCM shows none). (d) The same FCM `messageId` arriving twice is displayed once (LRU of displayed ids). (e) Local notification ids are derived from the message id, so a replay replaces the existing notification instead of stacking.
 - **Delivering the same launch tap twice.** Delivered-id LRU in memory, plus the last launch-tap id persisted natively, so a stale `getInitialMessage()` after process restart or hot restart is not re-delivered. `init` is idempotent. `getInitialMessage` and the launch-details check run once per `init`.
 
 ## Public API
@@ -91,7 +91,7 @@ All Dart ↔ native calls are defined in a Pigeon file (`pigeons/messages.dart`)
 |---|---|---|
 | Background/terminated, **notification message** | FCM/system downloads and shows the image automatically (BigPicture) when `image` is set in the payload. Nothing for the package to do. | Needs a **Notification Service Extension** in the host app (`mutable-content: 1`). The package ships a ready-made `PushNotificationService` Swift class that downloads `image` and attaches it; the app adds the extension target and subclasses/copies it. README has the steps. |
 | Background/terminated, **data-only** | Background isolate shows a local notification with `BigPictureStyle`, image downloaded natively in the Pigeon handler (with timeout). | Data-only pushes cannot run the extension; the plugin downloads the image and attaches it as a `UNNotificationAttachment` to a local notification. Subject to iOS background execution limits; falls back to text-only. |
-| Foreground | Package shows local notification with `BigPictureStyle`. | OS presents the banner; the image is present only if the extension ran (requires `mutable-content`). Otherwise text only. |
+| Foreground | Package shows local notification with `BigPictureStyle`. | Notification message: OS presents the banner; the image is present only if the extension ran (requires `mutable-content`), otherwise text only. Data-only: the plugin downloads the image and attaches it to the notification it posts. |
 
 Rules: download with a short timeout (≈10 s) and size cap, https only by default (configurable), cache in the temp dir, and **always fall back to a text-only notification** on any failure. Never block a tap or the notification on the image.
 
@@ -110,7 +110,7 @@ block; "data-only" = payload with only `data`.
 
 | State | Message kind | What happens | Tap path → decision maker |
 |---|---|---|---|
-| **Foreground** | any | `onMessage` fires. Android: FCM shows nothing, so the package shows a local notification (if `showForegroundNotifications`). iOS: `setForegroundNotificationPresentationOptions(alert/badge/sound)` so the OS shows it; the package does **not** also show a local one. Emits `onForegroundMessage`. | Android: local plugin `onDidReceiveNotificationResponse`. iOS: same callback (FCM-delivered banner taps arrive via `onMessageOpenedApp`; both are de-duplicated). |
+| **Foreground** | any | `onMessage` fires; `onForegroundMessage` is emitted first (before any display, which may wait on an image download). Android: FCM shows nothing, so the package shows a local notification (if `showForegroundNotifications`). iOS, notification message: `setForegroundNotificationPresentationOptions(alert/badge/sound)` so the OS shows it; the package does **not** also show one. iOS, data-only: the OS presents nothing, so the package shows a native notification from `data` title/body (if `showForegroundNotifications`; deduped by `messageId`). | Android: local plugin `onDidReceiveNotificationResponse`. iOS: same callback (FCM-delivered banner taps arrive via `onMessageOpenedApp`; both are de-duplicated). |
 | **Background** (process alive) | notification | OS displays it. | `onMessageOpenedApp`. |
 | **Background** | data-only | Package's top-level background handler runs in its own isolate: `Firebase.initializeApp()`, init the local plugin, show a local notification from `data` (title/body keys, configurable), then call the app's optional `onBackgroundMessage`. | Local `onDidReceiveNotificationResponse`. |
 | **Terminated** | notification | OS displays it. | On next launch, `getInitialMessage()` (consumed once). Queued until `markReady()`. |
@@ -121,10 +121,12 @@ Rules that make this correct:
 
 1. **Single entry for taps.** All of the above feed one internal `_handleTap(PushMessage)`.
 2. **Cold-start queue.** Before `markReady()`, taps are appended to a queue; `markReady()` flushes in order. After `markReady()`, taps are delivered immediately.
-3. **De-duplication.** Keep a small LRU of delivered message ids (FCM `messageId`, or a generated id embedded in the local payload). A tap whose id was already delivered is dropped.
+3. **De-duplication.** Keep a small LRU of delivered message ids (FCM `messageId`, or a generated id embedded in the local payload). A tap whose id was already delivered is dropped (logged at debug level).
 4. **Launch check once.** `init` calls `getInitialMessage()` and `getNotificationAppLaunchDetails()` exactly once.
 5. **Local payload.** The local notification payload is the JSON-encoded `data` plus `id`, so a local tap rebuilds a full `PushMessage`.
 6. **Background isolate rule.** Background code cannot touch app state or UI; the package keeps it to initialize + display + the user's top-level hook.
+7. **Tap `appState`.** Launch taps are `terminated`. A live local/native tap is `foreground` if the app's lifecycle state is `resumed` when the tap arrives, otherwise `background`; `onMessageOpenedApp` taps are `background`.
+8. **Prompt decision maker.** Taps are delivered one at a time (each awaits the decision maker), so the decision maker must return promptly; it should start navigation without awaiting the pushed route.
 
 ## Platform setup the package cannot do (README)
 
@@ -159,7 +161,7 @@ Rules that make this correct:
 - Last launch-tap id is persisted natively (SharedPreferences / UserDefaults) through two Pigeon methods.
 - Package name `push_notifications` (confirmed by you). Checked pub.dev on 2026-11-01: `push_notifications` and `fl_notifications` are not taken; `push_notification` and `flutter_push_notifications` are.
 - `markReady()` as the cold-start gate.
-- iOS foreground uses OS presentation options rather than a local notification.
+- iOS foreground uses OS presentation options rather than a local notification for notification messages; foreground data-only messages (not presented by the OS) are shown natively by the plugin.
 - Data-only messages are displayed via a local notification using `title`/`body` keys in `data` (configurable).
 - No action buttons or scheduling in v1.
 - Errors thrown by the decision maker are caught, logged, and do not break later taps.

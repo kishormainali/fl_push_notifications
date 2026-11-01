@@ -1,8 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'
-    show Importance;
 import 'package:push_notifications/push_notifications.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -18,15 +15,16 @@ Future<void> onBackgroundMessage(RemoteMessage message) async {
 }
 
 /// Decides which screen a tap opens, based on `data['type']`.
-Future<void> decisionMaker(PushMessage m) async {
+///
+/// Returns promptly: taps are delivered one at a time, so the navigation is
+/// started but not awaited (a pushed route's future completes only when the
+/// route is popped).
+void decisionMaker(PushMessage m) {
   recentTaps.value = [m, ...recentTaps.value].take(20).toList();
   final nav = navigatorKey.currentState;
   if (nav == null) return;
-  if (m.data['type'] == 'chat') {
-    await nav.pushNamed('/chat', arguments: m);
-  } else {
-    await nav.pushNamed('/detail', arguments: m);
-  }
+  final route = m.data['type'] == 'chat' ? '/chat' : '/detail';
+  nav.pushNamed(route, arguments: m);
 }
 
 Future<void> main() async {

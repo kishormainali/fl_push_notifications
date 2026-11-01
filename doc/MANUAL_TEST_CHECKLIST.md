@@ -18,8 +18,8 @@ the decision maker runs once with the expected `appState`.
 |---|---|---|---|---|---|
 | 1 | Foreground | notification | no | Android: local notification. iOS: OS banner. | foreground |
 | 2 | Foreground | notification | yes | Android: big picture. iOS: banner, image only if the extension ran | foreground |
-| 3 | Foreground | data-only | no | Android: local notification. iOS: nothing from the package (OS does not present data-only) | foreground |
-| 4 | Foreground | data-only | yes | Android: big picture | foreground |
+| 3 | Foreground | data-only | no | Android: local notification. iOS: one native notification from `data` title/body (shown by the package; the OS presents nothing) | foreground |
+| 4 | Foreground | data-only | yes | Android: big picture. iOS: one native notification with the image attached | foreground |
 | 5 | Background | notification | no | OS notification | background |
 | 6 | Background | notification | yes | Android: image automatic. iOS: needs extension + `mutable-content` | background |
 | 7 | Background | data-only | no | Notification from `data` title/body | background |

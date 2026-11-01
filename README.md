@@ -18,23 +18,26 @@ the foreground, background and terminated states.
 ```yaml
 dependencies:
   push_notifications: ^0.1.0
+  # For Firebase.initializeApp() in your main().
   firebase_core: ^5.1.0
-  # Needed only for PushChannel(importance: Importance.high) and the like.
-  flutter_local_notifications: ^22.3.3
 ```
 
-Firebase must be configured natively in your app (`google-services.json`,
-`GoogleService-Info.plist`). The background isolate calls
-`Firebase.initializeApp()` without options, which relies on that.
+`push_notifications` re-exports `RemoteMessage` (from `firebase_messaging`) and
+`Importance` (from `flutter_local_notifications`), so you do not need either
+package as a direct dependency just for those types.
+
+Your app still needs Firebase: add `firebase_core`, call
+`Firebase.initializeApp()` before `init`, and configure Firebase natively
+(`google-services.json`, `GoogleService-Info.plist`). The background isolate
+calls `Firebase.initializeApp()` without options, which relies on that native
+configuration.
 
 ## One-call setup
 
 ```dart
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'
-    show Importance;
+// Also exports RemoteMessage and Importance.
 import 'package:push_notifications/push_notifications.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -47,10 +50,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await PushNotifications.instance.init(
-    decisionMaker: (PushMessage m) async {
-      // Open a screen based on the message.
+    decisionMaker: (PushMessage m) {
+      // Open a screen based on the message. Do not await the navigation: a
+      // pushed route's future completes only when it is popped.
       if (m.data['type'] == 'chat') {
-        await navigatorKey.currentState?.pushNamed('/chat', arguments: m);
+        navigatorKey.currentState?.pushNamed('/chat', arguments: m);
       }
     },
     channels: [
@@ -90,9 +94,16 @@ source and in any app state, goes through it. `PushMessage` has `id`, `title`,
 
 - Taps that arrive before `markReady()` are queued and delivered in order when
   you call it. After that they are delivered immediately.
+- Taps are delivered one at a time: the next tap waits until the decision
+  maker's returned future completes. Return promptly; in particular do not
+  `await` a `Navigator.push*` call (it completes only when the route is
+  popped), or later taps stall.
 - An exception thrown by the decision maker is caught and logged; it does not
   block later taps.
-- A repeated message id is delivered once.
+- A repeated message id is delivered once (the dropped duplicate is logged).
+- `appState` of a tap that arrives while the app runs is `foreground` if the
+  app is resumed at that moment, otherwise `background`; launch taps are
+  `terminated`.
 
 ## Behavior by app state
 
@@ -101,7 +112,8 @@ source and in any app state, goes through it. `PushMessage` has `id`, `title`,
 
 | State | Message kind | What happens | Tap path |
 |---|---|---|---|
-| Foreground | any | Android: FCM shows nothing, so the package shows a local notification (if `showForegroundNotifications`; needs a `title` or `body`). iOS: the OS presents it (alert/badge/sound); the package does not also show one. `onForegroundMessage` emits. | Local notification tap, or the native tap hook on iOS |
+| Foreground | notification | `onForegroundMessage` emits first. Android: FCM shows nothing, so the package shows a local notification (if `showForegroundNotifications`; needs a `title` or `body`). iOS: the OS presents it (alert/badge/sound, via `setForegroundNotificationPresentationOptions`); the package does not also show one. | Android: local notification tap. iOS: `onMessageOpenedApp` |
+| Foreground | data-only | `onForegroundMessage` emits first. If `showForegroundNotifications` and `data` has a `title` or `body` (`titleKey`/`bodyKey`), the package shows a notification: Android a local one, iOS a native one (the OS presents nothing for data-only, so nothing is duplicated). A repeated message id is shown once. | Local notification tap, or the native tap hook |
 | Background | notification | The OS displays it. | `onMessageOpenedApp` |
 | Background | data-only | The package's top-level handler runs in a background isolate: it initializes Firebase, shows a notification from `data` (`title`/`body` keys), then runs your optional `onBackgroundMessage`. | Native/local notification tap |
 | Terminated | notification | The OS displays it. | On next launch, `getInitialMessage()`; queued until `markReady()` |
@@ -145,7 +157,7 @@ final count = await PushNotifications.instance.getBadgeCount(); // iOS only
 |---|---|---|
 | Notification message | Automatic from the FCM `image` field. | Needs a Notification Service Extension and `mutable-content: 1` (below). |
 | Data-only | Downloaded natively and shown as a big picture from `data['image']` (key configurable via `imageKey`). | Downloaded natively and attached to the notification (subject to iOS background limits). |
-| Foreground | Big picture. | OS presents it; the image shows only if the extension ran. |
+| Foreground | Big picture. | Notification message: OS presents it; the image shows only if the extension ran. Data-only: downloaded natively and attached. |
 
 Downloads are https-only by default (`imageHttpsOnly`), time out after 10 s and
 are capped at 5 MB. On any failure the notification is shown without the image.
@@ -155,8 +167,9 @@ The Notification Service Extension is always https-only with the same limits.
 
 - A tap is never silently dropped: with no decision maker it is logged and kept
   queued; a corrupt local payload still yields a minimal `PushMessage`.
-- The same notification is not shown twice: iOS foreground uses OS presentation
-  only, notification messages are never re-shown by the background handler, a
+- The same notification is not shown twice: on iOS a foreground notification
+  message uses OS presentation only (the package shows only data-only
+  messages, which the OS does not present), notification messages are never re-shown by the background handler, a
   repeated FCM message id is shown once, and local notification ids derive from
   the message id so a replay replaces the existing one.
 - A launch tap is delivered once: delivered ids are also persisted natively so a

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:push_notifications/src/config.dart';
@@ -24,6 +27,7 @@ void main() {
   late FakeHostApi host;
   late List<PushMessage> taps;
   PushFlutterApi? nativeApi;
+  AppLifecycleState? lifecycle;
 
   PushNotifications build({bool isIOS = false}) => PushNotifications.withPorts(
     msg,
@@ -31,6 +35,7 @@ void main() {
     host,
     isIOS: isIOS,
     registerFlutterApi: (a) => nativeApi = a,
+    currentLifecycleState: () => lifecycle,
   );
 
   Future<PushNotifications> started({
@@ -64,6 +69,7 @@ void main() {
     host = FakeHostApi();
     taps = [];
     nativeApi = null;
+    lifecycle = AppLifecycleState.resumed;
   });
 
   test(
@@ -128,14 +134,61 @@ void main() {
         id: 'l1',
         channelId: 'default',
         source: MessageSource.local,
-        appState: PushAppState.foreground,
+        appState: PushAppState.terminated,
       ).toLocalPayload(),
-      PushAppState.foreground,
     );
     await pump();
     expect(taps.single.source, MessageSource.local);
     expect(taps.single.appState, PushAppState.foreground);
     expect(taps.single.id, 'l1');
+  });
+
+  group('live tap appState follows the lifecycle at tap time', () {
+    test(
+      'local tap while resumed is foreground, otherwise background',
+      () async {
+        await started();
+        local.onTap!('{"id":"l1"}');
+        lifecycle = AppLifecycleState.inactive;
+        local.onTap!('{"id":"l2"}');
+        lifecycle = AppLifecycleState.paused;
+        local.onTap!('{"id":"l3"}');
+        lifecycle = null;
+        local.onTap!('{"id":"l4"}');
+        await pump();
+        expect(taps.map((m) => m.appState), [
+          PushAppState.foreground,
+          PushAppState.background,
+          PushAppState.background,
+          PushAppState.background,
+        ]);
+      },
+    );
+
+    test(
+      'native tap while resumed is foreground, otherwise background',
+      () async {
+        await started();
+        nativeApi!.onNativeTap('{"id":"n1"}');
+        lifecycle = AppLifecycleState.hidden;
+        nativeApi!.onNativeTap('{"id":"n2"}');
+        await pump();
+        expect(taps.map((m) => m.appState), [
+          PushAppState.foreground,
+          PushAppState.background,
+        ]);
+      },
+    );
+
+    test('launch taps stay terminated even while resumed', () async {
+      host.nativeLaunchPayload = '{"id":"n3"}';
+      local.launch = '{"id":"l5"}';
+      await started();
+      expect(taps.map((m) => m.appState), [
+        PushAppState.terminated,
+        PushAppState.terminated,
+      ]);
+    });
   });
 
   test('native tap payload becomes a local tap', () async {
@@ -211,10 +264,57 @@ void main() {
       expect(local.shown.single.$1.body, 'M');
     });
 
-    test('iOS data-only does not show locally', () async {
-      await started(isIOS: true);
+    test('iOS data-only with title/body is shown via the host once', () async {
+      final p = await started(isIOS: true);
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(
+        dataOnly('d4', {'title': 'T', 'body': 'B', 'image': 'https://x/y.png'}),
+      );
       msg.onMessageCtl.add(dataOnly('d4', {'title': 'T', 'body': 'B'}));
       await pump();
+      final c = host.shownNotifications.single;
+      expect(c.title, 'T');
+      expect(c.body, 'B');
+      expect(c.id, stableLocalId('d4'));
+      expect(c.extras['messageId'], 'd4');
+      expect(c.imageUrl, 'https://x/y.png');
+      expect(c.imageStyle, ImageStyle.bigPicture);
+      expect(local.shown, isEmpty);
+      expect(emitted, hasLength(1));
+    });
+
+    test('iOS data-only with only a body is shown via the host', () async {
+      await started(isIOS: true);
+      msg.onMessageCtl.add(dataOnly('d5', {'body': 'B'}));
+      await pump();
+      expect(host.shownNotifications.single.body, 'B');
+      expect(host.shownNotifications.single.imageStyle, ImageStyle.none);
+    });
+
+    test('iOS data-only without title/body is not shown', () async {
+      await started(isIOS: true);
+      msg.onMessageCtl.add(dataOnly('d6', {'k': 'v'}));
+      await pump();
+      expect(host.shownNotifications, isEmpty);
+      expect(local.shown, isEmpty);
+    });
+
+    test('iOS data-only respects showForegroundNotifications false', () async {
+      await started(isIOS: true, show: false);
+      msg.onMessageCtl.add(dataOnly('d7', {'title': 'T'}));
+      await pump();
+      expect(host.shownNotifications, isEmpty);
+    });
+
+    test('iOS data-only host failure is swallowed and still emitted', () async {
+      final p = await started(isIOS: true);
+      host.failShow = true;
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(dataOnly('d8', {'title': 'T'}));
+      await pump();
+      expect(emitted, hasLength(1));
       expect(local.shown, isEmpty);
     });
   });
@@ -284,16 +384,37 @@ void main() {
     });
   });
 
-  test('foreground on iOS sets presentation options, no local show', () async {
-    final p = await started(isIOS: true);
-    final emitted = <PushMessage>[];
-    p.onForegroundMessage.listen(emitted.add);
-    msg.onMessageCtl.add(rm('f1'));
-    await pump();
-    expect(msg.presentationAlert, isTrue);
-    expect(local.shown, isEmpty);
-    expect(emitted, hasLength(1));
-  });
+  test(
+    'foreground on iOS with a notification block is OS-presented only',
+    () async {
+      final p = await started(isIOS: true);
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(rm('f1'));
+      await pump();
+      expect(msg.presentationAlert, isTrue);
+      expect(local.shown, isEmpty);
+      expect(host.shownNotifications, isEmpty);
+      expect(emitted, hasLength(1));
+    },
+  );
+
+  test(
+    'onForegroundMessage is emitted before a slow display finishes',
+    () async {
+      final p = await started();
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      local.showGate = Completer<void>();
+      msg.onMessageCtl.add(rm('slow'));
+      await pump();
+      expect(local.shown, hasLength(1), reason: 'display has started');
+      expect(emitted, hasLength(1), reason: 'emitted while display is pending');
+      local.showGate!.complete();
+      await pump();
+      expect(emitted, hasLength(1));
+    },
+  );
 
   test('showForegroundNotifications false skips the local display', () async {
     final p = await started(show: false);

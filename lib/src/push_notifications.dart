@@ -4,7 +4,7 @@ import 'dart:ui' show PluginUtilities;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart' show AppLifecycleState;
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 
 import 'badge.dart';
 
@@ -40,8 +40,12 @@ class PushNotifications {
     this.isIOS = false,
     void Function(PushFlutterApi?)? registerFlutterApi,
     Stream<AppLifecycleState> Function()? lifecycleStates,
+    AppLifecycleState? Function()? currentLifecycleState,
   }) : _registerFlutterApi = registerFlutterApi ?? ((_) {}),
-       _lifecycleStates = lifecycleStates ?? appLifecycleStates;
+       _lifecycleStates = lifecycleStates ?? appLifecycleStates,
+       _currentLifecycleState =
+           currentLifecycleState ??
+           (() => WidgetsBinding.instance.lifecycleState);
 
   static final PushNotifications instance = PushNotifications._();
 
@@ -52,6 +56,7 @@ class PushNotifications {
   final bool isIOS;
   final void Function(PushFlutterApi?) _registerFlutterApi;
   final Stream<AppLifecycleState> Function() _lifecycleStates;
+  final AppLifecycleState? Function() _currentLifecycleState;
 
   final TapDispatcher _dispatcher = TapDispatcher();
   final StreamController<PushMessage> _foreground =
@@ -315,14 +320,20 @@ class PushNotifications {
         defaultChannelId: _defaultChannelId,
       );
 
-  void _onLocalTap(String? payload, PushAppState state) {
+  /// App state of a live (not launch) tap, read when the tap arrives: the
+  /// app was in the foreground only if it is resumed.
+  PushAppState _liveTapState() =>
+      _currentLifecycleState() == AppLifecycleState.resumed
+      ? PushAppState.foreground
+      : PushAppState.background;
+
+  void _onLocalTap(String? payload) {
     if (payload == null) return;
-    unawaited(_dispatcher.handleTap(_fromPayload(payload, state)));
+    unawaited(_dispatcher.handleTap(_fromPayload(payload, _liveTapState())));
   }
 
-  void _onNativeTap(String payload) => unawaited(
-    _dispatcher.handleTap(_fromPayload(payload, PushAppState.background)),
-  );
+  void _onNativeTap(String payload) =>
+      unawaited(_dispatcher.handleTap(_fromPayload(payload, _liveTapState())));
 
   Future<void> _onForegroundMessage(RemoteMessage rm) async {
     final id = rm.messageId;
@@ -337,12 +348,32 @@ class PushNotifications {
       }
     }
     final m = _fromRemote(rm, PushAppState.foreground);
-    // iOS foreground is OS presentation only (setForegroundPresentation); an
-    // image shows only if the Notification Service Extension ran.
-    if (!isIOS && _showForeground && (m.title != null || m.body != null)) {
-      await _displayForeground(m);
-    }
+    // Emitted first: the display may wait on an image download (~10 s).
     _foreground.add(m);
+    if (!_showForeground || (m.title == null && m.body == null)) return;
+    if (!isIOS) return _displayForeground(m);
+    // iOS: a message with a `notification` block is presented by the OS
+    // (setForegroundPresentation; an image only if the Notification Service
+    // Extension ran), so it is not shown again here. A data-only message gets
+    // no OS presentation, so the plugin posts it natively.
+    if (rm.notification == null) await _displayNativeIOS(m);
+  }
+
+  Future<void> _displayNativeIOS(PushMessage m) async {
+    try {
+      await _host.showNotification(
+        buildNativeContent(
+          messageId: m.id,
+          title: m.title,
+          body: m.body,
+          channelId: m.channelId,
+          data: m.data,
+          imageUrl: m.imageUrl,
+        ),
+      );
+    } catch (e) {
+      debugPrint('push_notifications: foreground show failed: $e');
+    }
   }
 
   Future<void> _displayForeground(PushMessage m) async {

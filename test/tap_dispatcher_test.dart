@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:push_notifications/src/push_message.dart';
 import 'package:push_notifications/src/tap_dispatcher.dart';
@@ -96,5 +97,22 @@ void main() {
     await d.handleTap(msg('a')); // delivered again
     await d.handleTap(msg('c')); // still known
     expect(seen, ['a', 'b', 'c', 'a']);
+  });
+
+  test('a dropped duplicate tap is logged', () async {
+    final logs = <String>[];
+    final original = debugPrint;
+    debugPrint = (String? m, {int? wrapWidth}) => logs.add(m ?? '');
+    addTearDown(() => debugPrint = original);
+    final d = TapDispatcher(decisionMaker: (_) {});
+    await d.markReady();
+    await d.handleTap(msg('a'));
+    expect(logs, isEmpty);
+    await d.handleTap(msg('a'));
+    expect(logs.single, contains('duplicate tap a dropped'));
+  });
+
+  test('dedupeCapacity must be positive', () {
+    expect(() => TapDispatcher(dedupeCapacity: 0), throwsAssertionError);
   });
 }

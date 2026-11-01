@@ -8,7 +8,8 @@ import 'push_message.dart';
 /// Delivers notification taps to the app's [DecisionMaker], queueing until the
 /// app is ready and de-duplicating by message id.
 class TapDispatcher {
-  TapDispatcher({this._decisionMaker, this.dedupeCapacity = 50});
+  TapDispatcher({this._decisionMaker, this.dedupeCapacity = 50})
+    : assert(dedupeCapacity > 0, 'dedupeCapacity must be positive');
 
   final int dedupeCapacity;
   DecisionMaker? _decisionMaker;
@@ -24,6 +25,7 @@ class TapDispatcher {
 
   Future<void> handleTap(PushMessage m) async {
     if (_seen.contains(m.id)) {
+      debugPrint('push_notifications: duplicate tap ${m.id} dropped');
       // Refresh recency for LRU.
       _seen
         ..remove(m.id)

@@ -25,7 +25,7 @@ abstract class MessagingPort {
 /// Thin seam over FlutterLocalNotificationsPlugin.
 abstract class LocalPort {
   Future<void> initialize({
-    required void Function(String? payload, PushAppState state) onTap,
+    required void Function(String? payload) onTap,
     required Future<void> Function(NotificationResponse) onBackgroundTap,
   });
   Future<String?> launchPayload();

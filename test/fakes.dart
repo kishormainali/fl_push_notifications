@@ -54,13 +54,16 @@ class FakeMessagingPort implements MessagingPort {
 class FakeLocalPort implements LocalPort {
   String? launch;
   int launchCalls = 0;
-  void Function(String?, PushAppState)? onTap;
+  void Function(String?)? onTap;
   final shown = <(PushMessage, int)>[];
   Function? bgTap;
 
+  /// When set, `show` records the call and then waits for it to complete.
+  Completer<void>? showGate;
+
   @override
   Future<void> initialize({
-    required void Function(String? payload, PushAppState state) onTap,
+    required void Function(String? payload) onTap,
     required Future<void> Function(NotificationResponse) onBackgroundTap,
   }) async {
     this.onTap = onTap;
@@ -78,8 +81,10 @@ class FakeLocalPort implements LocalPort {
   @override
   Future<bool> requestAndroidPermission() async => true;
   @override
-  Future<void> show(PushMessage m, {required int id}) async =>
-      shown.add((m, id));
+  Future<void> show(PushMessage m, {required int id}) async {
+    shown.add((m, id));
+    await showGate?.future;
+  }
 }
 
 class FakeHostApi extends PushHostApi {

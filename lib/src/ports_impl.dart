@@ -54,7 +54,7 @@ class FlutterLocalPort implements LocalPort {
 
   @override
   Future<void> initialize({
-    required void Function(String? payload, PushAppState state) onTap,
+    required void Function(String? payload) onTap,
     required Future<void> Function(NotificationResponse) onBackgroundTap,
   }) async {
     await _plugin.initialize(
@@ -66,8 +66,7 @@ class FlutterLocalPort implements LocalPort {
           requestSoundPermission: false,
         ),
       ),
-      onDidReceiveNotificationResponse: (r) =>
-          onTap(r.payload, PushAppState.foreground),
+      onDidReceiveNotificationResponse: (r) => onTap(r.payload),
       onDidReceiveBackgroundNotificationResponse: onBackgroundTap,
     );
   }
