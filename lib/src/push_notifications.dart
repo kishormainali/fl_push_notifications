@@ -4,6 +4,9 @@ import 'dart:ui' show PluginUtilities;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
+
+import 'badge.dart';
 
 import 'background_handler.dart';
 import 'config.dart';
@@ -36,7 +39,9 @@ class PushNotifications {
     this._host, {
     this.isIOS = false,
     void Function(PushFlutterApi?)? registerFlutterApi,
-  }) : _registerFlutterApi = registerFlutterApi ?? ((_) {});
+    Stream<AppLifecycleState> Function()? lifecycleStates,
+  }) : _registerFlutterApi = registerFlutterApi ?? ((_) {}),
+       _lifecycleStates = lifecycleStates ?? appLifecycleStates;
 
   static final PushNotifications instance = PushNotifications._();
 
@@ -46,6 +51,7 @@ class PushNotifications {
   @visibleForTesting
   final bool isIOS;
   final void Function(PushFlutterApi?) _registerFlutterApi;
+  final Stream<AppLifecycleState> Function() _lifecycleStates;
 
   final TapDispatcher _dispatcher = TapDispatcher();
   final StreamController<PushMessage> _foreground =
@@ -154,6 +160,17 @@ class PushNotifications {
       _messaging.onTokenRefresh.listen(_tokens.add),
     ]);
 
+    if (_badge.autoClearOnForeground) {
+      // The app is in the foreground while init runs, so clear once now and
+      // again every time it returns to the foreground.
+      _subs.add(
+        _lifecycleStates().listen((s) {
+          if (s == AppLifecycleState.resumed) unawaited(_clearBadgeSafely());
+        }),
+      );
+      await _clearBadgeSafely();
+    }
+
     await _deliverLaunchTaps();
   }
 
@@ -216,6 +233,29 @@ class PushNotifications {
       _messaging.subscribeToTopic(topic);
   Future<void> unsubscribeFromTopic(String topic) =>
       _messaging.unsubscribeFromTopic(topic);
+
+  /// Whether the app icon badge can be set on this device. Always `true` on
+  /// iOS; on Android only for recognized launchers (best effort).
+  Future<bool> isBadgeSupported() => _host.isBadgeSupported();
+
+  /// Sets the app icon badge. Negative values are clamped to 0.
+  Future<void> setBadgeCount(int count) =>
+      _host.setBadgeCount(count < 0 ? 0 : count);
+
+  /// Clears the app icon badge and resets the stored counter.
+  Future<void> clearBadge() => _host.clearBadge();
+
+  /// The current badge count on iOS; `null` on Android, where launchers do
+  /// not expose it.
+  Future<int?> getBadgeCount() => _host.getBadgeCount();
+
+  Future<void> _clearBadgeSafely() async {
+    try {
+      await clearBadge();
+    } catch (e) {
+      debugPrint('push_notifications: clearBadge failed: $e');
+    }
+  }
 
   /// Creates (or updates) a channel at runtime.
   Future<void> createChannel(PushChannel c) async {

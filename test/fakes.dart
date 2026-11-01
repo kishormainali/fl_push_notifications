@@ -110,6 +110,20 @@ class FakeHostApi extends PushHostApi {
   @override
   Future<int> incrementBadge() async => ++badgeIncrements;
 
+  final badgeSets = <int>[];
+  int badgeClears = 0;
+  bool badgeSupported = true;
+  int? storedBadge;
+
+  @override
+  Future<bool> isBadgeSupported() async => badgeSupported;
+  @override
+  Future<void> setBadgeCount(int count) async => badgeSets.add(count);
+  @override
+  Future<void> clearBadge() async => badgeClears++;
+  @override
+  Future<int?> getBadgeCount() async => storedBadge;
+
   @override
   Future<void> createChannel(ChannelConfig c) async {
     if (failCreate) throw StateError('create failed');

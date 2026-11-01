@@ -51,6 +51,8 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            // android.util.Log etc. return defaults instead of throwing on the JVM.
+            isReturnDefaultValues = true
             all {
                 it.useJUnitPlatform()
 
@@ -72,6 +74,9 @@ kotlin {
 }
 
 dependencies {
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.mockito:mockito-core:5.0.0")
+    // Used by the generated Pigeon code; declared explicitly, not transitively.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

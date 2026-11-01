@@ -8,7 +8,15 @@ class PushNotificationsPlugin : FlutterPlugin {
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val messenger = flutterPluginBinding.binaryMessenger
-        PushHostApi.setUp(messenger, PushHostApiImpl())
+        // Registered for every engine, including FCM's background engine.
+        val context = flutterPluginBinding.applicationContext
+        PushHostApi.setUp(
+            messenger,
+            PushHostApiImpl(
+                BadgeHandler.create(context),
+                PushStorage(SharedPreferencesStore(context)),
+            ),
+        )
         flutterApi = PushFlutterApi(messenger)
     }
 

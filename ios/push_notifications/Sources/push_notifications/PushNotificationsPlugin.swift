@@ -5,7 +5,12 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = PushNotificationsPlugin()
-    PushHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: PushHostApiImpl())
+    // Registered for every engine, including background engines.
+    let defaults = PushStorage.sharedDefaults()
+    let api = PushHostApiImpl(
+      badge: BadgeHandler(defaults: defaults, applier: SystemBadgeApplier()),
+      storage: PushStorage(defaults: defaults))
+    PushHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api)
     instance.flutterApi = PushFlutterApi(binaryMessenger: registrar.messenger())
     registrar.publish(instance)
   }
