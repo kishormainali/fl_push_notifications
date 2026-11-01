@@ -90,10 +90,13 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
       (local and big-picture) is `foreground`; Android background tap on a
       data-only notification is `background`; iOS foreground tap on a
       notification message (`onMessageOpenedApp`) and on a data-only one
-      (native) is `foreground`, background taps `background`.
+      (native) is `foreground`, both as a banner tap and from Notification
+      Center pulled down over the running app (the app is `.inactive` then);
+      background taps `background`.
 - [ ] **[DEFERRED RISK]** Cold start with two taps (tap one, then a second
-      before the first frame): the first is `terminated`, the second keeps the
-      state it was received in (usually `background`).
+      before the first frame): the first is `terminated` and arrives first,
+      the second keeps the state it was received in (usually `background`)
+      and arrives after it.
 - [ ] **[DEFERRED RISK]** Android big-picture rendering (collapsed and expanded).
 - [ ] **[DEFERRED RISK]** Channel group (`groupId`) appears in system settings.
 - [ ] **[DEFERRED RISK]** Repeated id replaces the existing notification on both

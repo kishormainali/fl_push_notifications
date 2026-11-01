@@ -18,3 +18,6 @@
   fall back to text-only.
 * Token, token refresh, topic subscription and foreground/tap streams.
 * Android (Kotlin) and iOS (Swift Package Manager only) native code via Pigeon.
+* `init` reads the app lifecycle through `WidgetsBinding` (to label tap
+  `appState`), so call `WidgetsFlutterBinding.ensureInitialized()` before it
+  (already needed for `Firebase.initializeApp()`).

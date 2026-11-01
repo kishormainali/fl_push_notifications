@@ -104,12 +104,15 @@ source and in any app state, goes through it. `PushMessage` has `id`, `title`,
 - `appState` of a tap is captured where the tap is received, not when Dart
   gets it: launch taps are `terminated`; a tap on a notification posted by the
   plugin natively is `foreground` if the app was active when the OS reported
-  the tap (iOS `applicationState == .active`; Android: the activity had been
-  resumed since it was last started), otherwise `background`; a tap reported by
+  the tap (iOS: the app became active and has not entered the background
+  since, so a tap from Notification Center pulled over the app counts;
+  Android: the activity had been resumed since it was last started), otherwise
+  `background`; a tap reported by
   flutter_local_notifications or `onMessageOpenedApp` is `foreground` if the
   last lifecycle state other than `inactive` was `resumed`, otherwise
   `background`. A tap queued during a cold start that is not the launch tap
-  keeps its captured state. `appState` is informational (it does not affect
+  keeps its captured state and is delivered after the launch tap. `appState`
+  is informational (it does not affect
   routing or de-duplication).
 
 ## Behavior by app state
