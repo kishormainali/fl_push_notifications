@@ -10,12 +10,15 @@ final class PushHostApiImpl: PushHostApi {
   private let badge: BadgeHandler
   private let storage: PushStorage
   private let taps: TapRouter
+  private let deliverTap: TapRouter.Deliver
   private let downloader: ImageDownloading
 
   init(
     badge: BadgeHandler, storage: PushStorage, taps: TapRouter,
+    deliverTap: @escaping TapRouter.Deliver,
     downloader: ImageDownloading = ImageDownloader.shared
   ) {
+    self.deliverTap = deliverTap
     self.badge = badge
     self.storage = storage
     self.taps = taps
@@ -36,7 +39,11 @@ final class PushHostApiImpl: PushHostApi {
     storage.saveBackgroundConfig(config)
   }
   func loadBackgroundConfig() throws -> BackgroundConfigMsg? { storage.loadBackgroundConfig() }
-  func consumeLaunchPayload() throws -> String? { taps.consumeLaunchPayload() }
+  /// Called by Dart's `init` (after it registered the tap handler): binds live
+  /// tap delivery to this engine and returns the launch tap.
+  func consumeLaunchPayload() throws -> String? {
+    taps.consumeLaunchPayload(deliver: deliverTap)
+  }
 
   /// Downloads the image first (big picture only), falls back to text-only on
   /// any image failure, and posts with an id-derived identifier so the same

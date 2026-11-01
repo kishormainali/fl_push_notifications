@@ -3,40 +3,44 @@ import PushNotificationsCore
 import UserNotifications
 
 public class PushNotificationsPlugin: NSObject, FlutterPlugin {
-  /// Taps are handled by the first engine's instance only (the app's main
-  /// engine), so background engines neither deliver nor answer them twice.
+  /// The single application delegate answering notification taps, held
+  /// strongly here (the app delegate's registry may only hold it weakly) so it
+  /// outlives whichever engine registered first (possibly a headless one).
+  private static let tapHandler = PushNotificationsPlugin()
   private static var tapHandlerRegistered = false
 
-  private var flutterApi: PushFlutterApi?
-
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let instance = PushNotificationsPlugin()
-    // Registered for every engine, including background engines.
+    // Registered for every engine, including background/headless engines.
     let defaults = PushStorage.sharedDefaults()
+    let flutterApi = PushFlutterApi(binaryMessenger: registrar.messenger())
     let api = PushHostApiImpl(
       badge: BadgeHandler(defaults: defaults, applier: SystemBadgeApplier()),
       storage: PushStorage(defaults: defaults),
-      taps: TapRouter.shared)
+      taps: TapRouter.shared,
+      // Live taps go to the engine whose Dart ran `init` (it is the one that
+      // calls consumeLaunchPayload), not to the first engine registered.
+      deliverTap: Self.deliverer(flutterApi))
     PushHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api)
-    let flutterApi = PushFlutterApi(binaryMessenger: registrar.messenger())
-    instance.flutterApi = flutterApi
-    registrar.publish(instance)
+    registrar.publish(PushNotificationsPlugin())
 
     if !tapHandlerRegistered {
       tapHandlerRegistered = true
       // FlutterAppDelegate forwards UNUserNotificationCenterDelegate calls to
       // every registered application delegate (when it is the center's
       // delegate), each with the same completion handler.
-      registrar.addApplicationDelegate(instance)
-      TapRouter.shared.deliver = { payload, done in
-        Task { @MainActor in
-          do {
-            try await flutterApi.onNativeTap(payload: payload)
-            done(true)
-          } catch {
-            NSLog("push_notifications: onNativeTap not delivered, keeping it: \(error)")
-            done(false)
-          }
+      registrar.addApplicationDelegate(tapHandler)
+    }
+  }
+
+  private static func deliverer(_ flutterApi: PushFlutterApi) -> TapRouter.Deliver {
+    { payload, done in
+      Task { @MainActor in
+        do {
+          try await flutterApi.onNativeTap(payload: payload)
+          done(true)
+        } catch {
+          NSLog("push_notifications: onNativeTap not delivered, keeping it: \(error)")
+          done(false)
         }
       }
     }

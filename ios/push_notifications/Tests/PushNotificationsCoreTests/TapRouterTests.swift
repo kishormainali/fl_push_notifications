@@ -70,4 +70,63 @@ final class TapRouterTests: XCTestCase {
     r.handleTap("x")
     XCTAssertEqual(r.consumeLaunchPayload(), "x")
   }
+
+  func testRequeuedPayloadIsDrainedOnNextTap() {
+    var delivered: [String] = []
+    var accept = false
+    let r = TapRouter()
+    r.deliver = { p, done in
+      if accept { delivered.append(p) }
+      done(accept)
+    }
+    XCTAssertNil(r.consumeLaunchPayload())
+    r.handleTap("x")  // live delivery fails: re-queued
+    XCTAssertTrue(delivered.isEmpty)
+    accept = true
+    r.handleTap("y")  // retries x first, in order
+    XCTAssertEqual(delivered, ["x", "y"])
+    XCTAssertNil(r.consumeLaunchPayload())
+  }
+
+  func testConsumeBindsTheDelivererOfTheEngineThatAsked() {
+    var headless: [String] = []
+    var main: [String] = []
+    let r = TapRouter()
+    // A headless engine registered first; its Dart never calls consume.
+    r.deliver = { p, done in
+      headless.append(p)
+      done(false)
+    }
+    r.handleTap("a")
+    r.handleTap("b")
+    XCTAssertEqual(
+      r.consumeLaunchPayload(deliver: { p, done in
+        main.append(p)
+        done(true)
+      }), "a")
+    XCTAssertEqual(main, ["b"])
+    r.handleTap("c")
+    XCTAssertEqual(main, ["b", "c"])
+    XCTAssertTrue(headless.isEmpty)
+  }
+
+  func testRebindingReplacesTheDeliverer() {
+    var first: [String] = []
+    var second: [String] = []
+    let r = TapRouter()
+    XCTAssertNil(
+      r.consumeLaunchPayload(deliver: { p, done in
+        first.append(p)
+        done(true)
+      }))
+    r.handleTap("a")
+    XCTAssertNil(
+      r.consumeLaunchPayload(deliver: { p, done in
+        second.append(p)
+        done(true)
+      }))
+    r.handleTap("b")
+    XCTAssertEqual(first, ["a"])
+    XCTAssertEqual(second, ["b"])
+  }
 }
