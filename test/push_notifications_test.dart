@@ -40,9 +40,13 @@ void main() {
     List<PushChannel>? channels,
     String defaultId = 'default',
     String imageKey = 'image',
+    String titleKey = 'title',
+    String bodyKey = 'body',
   }) async {
     final p = build(isIOS: isIOS);
     await p.init(
+      titleKey: titleKey,
+      bodyKey: bodyKey,
       imageKey: imageKey,
       decisionMaker: taps.add,
       showForegroundNotifications: show,
@@ -166,6 +170,53 @@ void main() {
     expect(local.shown, hasLength(1));
     expect(local.shown.single.$2, greaterThanOrEqualTo(0));
     expect(emitted.single.appState, PushAppState.foreground);
+  });
+
+  group('foreground data-only', () {
+    RemoteMessage dataOnly(String id, Map<String, dynamic> data) =>
+        RemoteMessage(messageId: id, data: data);
+
+    test('Android data-only title/body shown locally and emitted', () async {
+      final p = await started();
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(dataOnly('d1', {'title': 'T', 'body': 'B'}));
+      await pump();
+      expect(local.shown, hasLength(1));
+      expect(local.shown.single.$1.title, 'T');
+      expect(local.shown.single.$1.body, 'B');
+      expect(emitted, hasLength(1));
+    });
+
+    test('custom titleKey/bodyKey honored and persisted', () async {
+      await started(titleKey: 'tt', bodyKey: 'bb');
+      msg.onMessageCtl.add(dataOnly('d2', {'tt': 'T', 'bb': 'B'}));
+      await pump();
+      expect(local.shown.single.$1.title, 'T');
+      expect(host.savedConfigs.single.titleKey, 'tt');
+      expect(host.savedConfigs.single.bodyKey, 'bb');
+    });
+
+    test('notification block wins over data', () async {
+      await started();
+      msg.onMessageCtl.add(
+        RemoteMessage(
+          messageId: 'd3',
+          data: {'title': 'D', 'body': 'D'},
+          notification: RemoteNotification(title: 'N', body: 'M'),
+        ),
+      );
+      await pump();
+      expect(local.shown.single.$1.title, 'N');
+      expect(local.shown.single.$1.body, 'M');
+    });
+
+    test('iOS data-only does not show locally', () async {
+      await started(isIOS: true);
+      msg.onMessageCtl.add(dataOnly('d4', {'title': 'T', 'body': 'B'}));
+      await pump();
+      expect(local.shown, isEmpty);
+    });
   });
 
   group('foreground images', () {

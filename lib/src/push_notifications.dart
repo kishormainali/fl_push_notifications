@@ -65,6 +65,8 @@ class PushNotifications {
   String _defaultChannelId = 'default';
   String _channelKey = 'channel_id';
   String _imageKey = 'image';
+  String _titleKey = 'title';
+  String _bodyKey = 'body';
   BadgeConfig _badge = BadgeConfig();
   final Set<String> _channelIds = {};
 
@@ -77,6 +79,8 @@ class PushNotifications {
     BackgroundMessageHook? onBackgroundMessage,
     BadgeConfig? badge,
     String imageKey = 'image',
+    String titleKey = 'title',
+    String bodyKey = 'body',
     bool imageHttpsOnly = true,
   }) {
     // Repeat and concurrent calls share the in-flight (or finished) future. A
@@ -91,6 +95,8 @@ class PushNotifications {
       showForegroundNotifications: showForegroundNotifications,
       badge: badge,
       imageKey: imageKey,
+      titleKey: titleKey,
+      bodyKey: bodyKey,
       imageHttpsOnly: imageHttpsOnly,
       onBackgroundMessage: onBackgroundMessage,
     );
@@ -113,6 +119,8 @@ class PushNotifications {
     required bool showForegroundNotifications,
     required BadgeConfig? badge,
     required String imageKey,
+    required String titleKey,
+    required String bodyKey,
     required bool imageHttpsOnly,
     required BackgroundMessageHook? onBackgroundMessage,
   }) async {
@@ -130,6 +138,8 @@ class PushNotifications {
     _defaultChannelId = defaultChannelId;
     _channelKey = channelKey;
     _imageKey = imageKey;
+    _titleKey = titleKey;
+    _bodyKey = bodyKey;
     _showForeground = showForegroundNotifications;
     _badge = badge ?? BadgeConfig();
 
@@ -193,8 +203,8 @@ class PushNotifications {
         defaultChannelId: _defaultChannelId,
         channelKey: _channelKey,
         imageKey: _imageKey,
-        titleKey: 'title',
-        bodyKey: 'body',
+        titleKey: _titleKey,
+        bodyKey: _bodyKey,
         imageHttpsOnly: imageHttpsOnly,
         autoIncrementOnPush: _badge.autoIncrementOnPush,
         autoClearOnForeground: _badge.autoClearOnForeground,
@@ -291,6 +301,8 @@ class PushNotifications {
         m,
         state,
         imageKey: _imageKey,
+        titleKey: _titleKey,
+        bodyKey: _bodyKey,
         channelKey: _channelKey,
         defaultChannelId: _defaultChannelId,
         knownChannels: _channelIds,

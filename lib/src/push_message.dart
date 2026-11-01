@@ -11,6 +11,8 @@ enum PushAppState { foreground, background, terminated }
 /// Called when the user taps a notification.
 typedef DecisionMaker = FutureOr<void> Function(PushMessage message);
 
+String? _nonEmpty(String? s) => (s == null || s.isEmpty) ? null : s;
+
 int _idCounter = 0;
 String _generateId() =>
     'gen-${DateTime.now().microsecondsSinceEpoch}-${_idCounter++}';
@@ -71,6 +73,8 @@ class PushMessage {
     RemoteMessage m,
     PushAppState state, {
     String imageKey = 'image',
+    String titleKey = 'title',
+    String bodyKey = 'body',
     String channelKey = 'channel_id',
     String defaultChannelId = 'default',
     Set<String>? knownChannels,
@@ -88,8 +92,8 @@ class PushMessage {
           );
     return PushMessage(
       id: m.messageId ?? _generateId(),
-      title: m.notification?.title,
-      body: m.notification?.body,
+      title: _nonEmpty(m.notification?.title) ?? _nonEmpty(data[titleKey]),
+      body: _nonEmpty(m.notification?.body) ?? _nonEmpty(data[bodyKey]),
       data: data,
       imageUrl: m.notification?.android?.imageUrl ?? data[imageKey],
       channelId: channelId,
