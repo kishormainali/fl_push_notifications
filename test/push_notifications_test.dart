@@ -39,9 +39,11 @@ void main() {
     bool ready = true,
     List<PushChannel>? channels,
     String defaultId = 'default',
+    String imageKey = 'image',
   }) async {
     final p = build(isIOS: isIOS);
     await p.init(
+      imageKey: imageKey,
       decisionMaker: taps.add,
       showForegroundNotifications: show,
       channels: channels ?? [PushChannel(id: 'default', name: 'General')],
@@ -164,6 +166,71 @@ void main() {
     expect(local.shown, hasLength(1));
     expect(local.shown.single.$2, greaterThanOrEqualTo(0));
     expect(emitted.single.appState, PushAppState.foreground);
+  });
+
+  group('foreground images', () {
+    const url = 'https://x/y.png';
+
+    test('Android image message goes through native bigPicture', () async {
+      final p = await started();
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(rm('i1', data: {'image': url}));
+      await pump();
+      final c = host.shownNotifications.single;
+      expect(c.imageUrl, url);
+      expect(c.imageStyle, ImageStyle.bigPicture);
+      expect(c.id, stableLocalId('i1'));
+      expect(c.extras['messageId'], 'i1');
+      expect(c.channelId, 'default');
+      expect(local.shown, isEmpty);
+      expect(emitted, hasLength(1));
+    });
+
+    test('Android text-only message still uses LocalPort', () async {
+      await started();
+      msg.onMessageCtl.add(rm('t1'));
+      await pump();
+      expect(local.shown, hasLength(1));
+      expect(host.shownNotifications, isEmpty);
+    });
+
+    test('host.showNotification failure falls back to LocalPort', () async {
+      final p = await started();
+      host.failShow = true;
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(rm('i2', data: {'image': url}));
+      await pump();
+      expect(local.shown, hasLength(1));
+      expect(emitted, hasLength(1));
+    });
+
+    test('custom imageKey is honored', () async {
+      await started(imageKey: 'pic');
+      msg.onMessageCtl.add(rm('i3', data: {'pic': url, 'image': 'ignored'}));
+      await pump();
+      expect(host.shownNotifications.single.imageUrl, url);
+    });
+
+    test('iOS foreground with image does no native or local show', () async {
+      final p = await started(isIOS: true);
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(rm('i4', data: {'image': url}));
+      await pump();
+      expect(host.shownNotifications, isEmpty);
+      expect(local.shown, isEmpty);
+      expect(emitted, hasLength(1));
+    });
+
+    test('same messageId with image displays once', () async {
+      await started();
+      msg.onMessageCtl.add(rm('i5', data: {'image': url}));
+      msg.onMessageCtl.add(rm('i5', data: {'image': url}));
+      await pump();
+      expect(host.shownNotifications, hasLength(1));
+    });
   });
 
   test('foreground on iOS sets presentation options, no local show', () async {

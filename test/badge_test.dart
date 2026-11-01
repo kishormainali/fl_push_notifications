@@ -99,18 +99,21 @@ void main() {
     expect(lifecycle.hasListener, isFalse);
   });
 
-  test('autoIncrementOnPush does not increment for a foreground push', () async {
-    await started(BadgeConfig(autoIncrementOnPush: true));
-    msg.onMessageCtl.add(
-      const RemoteMessage(
-        messageId: 'm1',
-        notification: RemoteNotification(title: 't', body: 'b'),
-      ),
-    );
-    await pump();
-    expect(host.badgeIncrements, 0);
-    expect(host.badgeSets, isEmpty);
-  });
+  test(
+    'autoIncrementOnPush does not increment for a foreground push',
+    () async {
+      await started(BadgeConfig(autoIncrementOnPush: true));
+      msg.onMessageCtl.add(
+        const RemoteMessage(
+          messageId: 'm1',
+          notification: RemoteNotification(title: 't', body: 'b'),
+        ),
+      );
+      await pump();
+      expect(host.badgeIncrements, 0);
+      expect(host.badgeSets, isEmpty);
+    },
+  );
 }
 
 Future<void> pump() => Future<void>.delayed(Duration.zero);

@@ -325,10 +325,41 @@ class PushNotifications {
       }
     }
     final m = _fromRemote(rm, PushAppState.foreground);
+    // iOS foreground is OS presentation only (setForegroundPresentation); an
+    // image shows only if the Notification Service Extension ran.
     if (!isIOS && _showForeground && (m.title != null || m.body != null)) {
-      await _local.show(m, id: stableLocalId(m.id));
+      await _displayForeground(m);
     }
     _foreground.add(m);
+  }
+
+  Future<void> _displayForeground(PushMessage m) async {
+    final image = m.imageUrl;
+    if (image != null && image.isNotEmpty) {
+      // Native BigPicture. Image failure must never lose the notification.
+      try {
+        await _host.showNotification(
+          buildNativeContent(
+            messageId: m.id,
+            title: m.title,
+            body: m.body,
+            channelId: m.channelId,
+            data: m.data,
+            imageUrl: image,
+          ),
+        );
+        return;
+      } catch (e) {
+        debugPrint(
+          'push_notifications: native image show failed, text-only: $e',
+        );
+      }
+    }
+    try {
+      await _local.show(m, id: stableLocalId(m.id));
+    } catch (e) {
+      debugPrint('push_notifications: foreground show failed: $e');
+    }
   }
 
   Future<void> _deliverLaunchTaps() async {

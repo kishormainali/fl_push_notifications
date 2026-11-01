@@ -21,6 +21,30 @@ Future<void> pushLocalBackgroundTap(NotificationResponse r) async {
   debugPrint('push_notifications: background tap ${r.id} ignored');
 }
 
+/// Single builder for native notification content, shared by the background
+/// handler and the Android foreground image path.
+NotificationContent buildNativeContent({
+  required String? messageId,
+  required String? title,
+  required String? body,
+  required String channelId,
+  required Map<String, String?> data,
+  String? imageUrl,
+}) {
+  final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+  return NotificationContent(
+    id: stableLocalId(messageId ?? ''),
+    title: title,
+    body: body,
+    channelId: channelId,
+    data: data.map((k, v) => MapEntry<String?, String?>(k, v)),
+    imageUrl: hasImage ? imageUrl : null,
+    imageStyle: hasImage ? ImageStyle.bigPicture : ImageStyle.none,
+    // Native tap payload uses this as its `id` so taps dedupe by messageId.
+    extras: messageId != null ? {'messageId': messageId} : const {},
+  );
+}
+
 /// Builds the native notification content for a data-only [m].
 NotificationContent contentFromRemote(
   RemoteMessage m, {
@@ -28,24 +52,14 @@ NotificationContent contentFromRemote(
   String titleKey = 'title',
   String bodyKey = 'body',
   required String channelId,
-}) {
-  final data = m.data.map(
-    (k, v) => MapEntry<String?, String?>(k, v?.toString()),
-  );
-  final image = m.data[imageKey]?.toString();
-  final hasImage = image != null && image.isNotEmpty;
-  return NotificationContent(
-    id: stableLocalId(m.messageId ?? ''),
-    title: m.data[titleKey]?.toString(),
-    body: m.data[bodyKey]?.toString(),
-    channelId: channelId,
-    data: data,
-    imageUrl: hasImage ? image : null,
-    imageStyle: hasImage ? ImageStyle.bigPicture : ImageStyle.none,
-    // Native tap payload uses this as its `id` so taps dedupe by messageId.
-    extras: m.messageId != null ? {'messageId': m.messageId} : const {},
-  );
-}
+}) => buildNativeContent(
+  messageId: m.messageId,
+  title: m.data[titleKey]?.toString(),
+  body: m.data[bodyKey]?.toString(),
+  channelId: channelId,
+  data: m.data.map((k, v) => MapEntry<String, String?>(k, v?.toString())),
+  imageUrl: m.data[imageKey]?.toString(),
+);
 
 final LinkedHashSet<String> _seen = LinkedHashSet<String>();
 const int _seenCapacity = 50;
