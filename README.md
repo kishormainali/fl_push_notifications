@@ -395,8 +395,10 @@ maps to this plugin (this plugin, not from the Firebase page):
   the deprecated `getToken` / `onTokenRefresh`, which Firebase says will be
   removed in a future release. On iOS `getPlatformToken()` reads the APNs
   token instead.
-- Limitation: `init` always subscribes to `onTokenRefresh`, even with
-  `autoRegister: false`.
+- `onTokenChanged` is lazy: the plugin subscribes to the deprecated
+  `onTokenRefresh` only while `onTokenChanged` has at least one listener, and
+  cancels it when the last listener leaves. `init` never subscribes to it, so
+  apps that use only the FID API never touch the deprecated stream.
 - New apps: enable the FID flags above and use the FID API (`onRegistered`,
   `installationId`).
 - Apps that still rely on registration tokens only: pass `autoRegister: false`

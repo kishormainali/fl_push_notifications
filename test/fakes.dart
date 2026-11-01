@@ -11,7 +11,15 @@ class FakeMessagingPort implements MessagingPort {
   RemoteMessage? initial;
   final onMessageCtl = StreamController<RemoteMessage>.broadcast();
   final openedCtl = StreamController<RemoteMessage>.broadcast();
-  final tokenCtl = StreamController<String>.broadcast();
+  late final tokenCtl = StreamController<String>.broadcast(
+    onListen: () => tokenListens++,
+    onCancel: () => tokenCancels++,
+  );
+  int tokenListens = 0;
+  int tokenCancels = 0;
+
+  /// When set, [onTokenRefresh] throws it (e.g. Firebase not initialized).
+  Object? tokenRefreshError;
   final registeredCtl = StreamController<String>.broadcast();
   final unregisteredCtl = StreamController<String>.broadcast();
   int initialCalls = 0;
@@ -70,7 +78,12 @@ class FakeMessagingPort implements MessagingPort {
   }
 
   @override
-  Stream<String> get onTokenRefresh => tokenCtl.stream;
+  Stream<String> get onTokenRefresh {
+    final e = tokenRefreshError;
+    if (e != null) throw e;
+    return tokenCtl.stream;
+  }
+
   @override
   Future<void> register() async {
     registerCalls++;

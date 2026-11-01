@@ -19,7 +19,9 @@
 * Firebase Installation ID (FID): `register()` / `unregister()`,
   `onRegistered` / `onUnregistered` and `installationId`, with
   `init(autoRegister: true)` registering by default (a failing registration does
-  not fail `init`). The FCM `token` / `onTokenChanged` API is unchanged.
+  not fail `init`). The FCM `token` / `onTokenChanged` API is unchanged, except that
+  `onTokenChanged` subscribes to the deprecated `onTokenRefresh` lazily, only
+  while it has listeners (`init` no longer subscribes to it).
 * `getPlatformToken()` returns the native platform token: the FCM token on
   Android, the APNs token on iOS (polled up to `apnsTimeout`, default 3 s).
   Differs from `token`, which is always the FCM token. Returns `null` instead

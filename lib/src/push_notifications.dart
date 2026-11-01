@@ -203,7 +203,6 @@ class PushNotifications {
         _messaging.onMessageOpenedApp.listen(
           (m) => _dispatcher.handleTap(_fromRemote(m, _liveTapState())),
         ),
-        _messaging.onTokenRefresh.listen(_tokens.add),
       ]);
 
       if (_badge.autoClearOnForeground) {
@@ -253,7 +252,39 @@ class PushNotifications {
     );
   }
 
-  final StreamController<String> _tokens = StreamController<String>.broadcast();
+  /// Backs [onTokenChanged]. The port's `onTokenRefresh` (deprecated upstream)
+  /// is subscribed only while this has listeners, so apps that use only the
+  /// FID API never touch it.
+  late final StreamController<String> _tokens =
+      StreamController<String>.broadcast(
+        onListen: _attachTokenRefresh,
+        onCancel: _detachTokenRefresh,
+      );
+
+  /// Lives outside [_subs] on purpose: it follows the listeners of
+  /// [onTokenChanged], not the init lifecycle, so init-failure cleanup must not
+  /// cancel it.
+  StreamSubscription<String>? _tokenSub;
+
+  void _attachTokenRefresh() {
+    if (_tokenSub != null) return;
+    try {
+      _tokenSub = _messaging.onTokenRefresh.listen(
+        _tokens.add,
+        onError: _tokens.addError,
+      );
+    } catch (e) {
+      // E.g. Firebase not initialized yet. Retried on the next listen.
+      debugPrint('push_notifications: cannot listen to token refresh: $e');
+    }
+  }
+
+  void _detachTokenRefresh() {
+    final sub = _tokenSub;
+    _tokenSub = null;
+    if (sub != null) unawaited(sub.cancel());
+  }
+
   final StreamController<String> _registered =
       StreamController<String>.broadcast();
   final StreamController<String> _unregistered =
