@@ -1,4 +1,5 @@
 import Flutter
+import UIKit
 import PushNotificationsCore
 import UserNotifications
 
@@ -33,10 +34,12 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
   }
 
   private static func deliverer(_ flutterApi: PushFlutterApi) -> TapRouter.Deliver {
-    { payload, done in
+    { tap, done in
+      // This hop may let Dart see `resumed` before the tap; appState comes
+      // from `tap.appWasActive`, captured in didReceive, not from Dart.
       Task { @MainActor in
         do {
-          try await flutterApi.onNativeTap(payload: payload)
+          try await flutterApi.onNativeTap(payload: tap.payload, appWasActive: tap.appWasActive)
           done(true)
         } catch {
           NSLog("push_notifications: onNativeTap not delivered, keeping it: \(error)")
@@ -67,7 +70,11 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
     let userInfo = response.notification.request.content.userInfo
     guard let payload = userInfo[NotificationBuilder.payloadKey] as? String else { return }
     if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
-      TapRouter.shared.handleTap(payload)
+      // Captured synchronously at the receive point: `.active` only for a tap
+      // made while the app was in the foreground (a tap that brings it back
+      // from the background, or launches it, arrives while `.inactive`).
+      let active = UIApplication.shared.applicationState == .active
+      TapRouter.shared.handleTap(NativeTap(payload: payload, appWasActive: active))
     }
     completionHandler()
   }

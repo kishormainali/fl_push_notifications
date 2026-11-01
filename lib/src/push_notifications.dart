@@ -75,6 +75,10 @@ class PushNotifications {
   BadgeConfig _badge = BadgeConfig();
   final Set<String> _channelIds = {};
 
+  /// Last lifecycle state other than `inactive` seen since init (seeded from
+  /// the state at init). Labels Dart-side live taps; see [_liveTapState].
+  AppLifecycleState? _lastActiveOrHidden;
+
   Future<void> init({
     required DecisionMaker decisionMaker,
     List<PushChannel> channels = const [],
@@ -148,6 +152,19 @@ class PushNotifications {
     _showForeground = showForegroundNotifications;
     _badge = badge ?? BadgeConfig();
 
+    // Tracked before anything can deliver a tap; cancelled with the other
+    // subscriptions if init fails.
+    _lastActiveOrHidden = null;
+    _noteLifecycle(_currentLifecycleState());
+    _subs.add(
+      _lifecycleStates().listen((s) {
+        _noteLifecycle(s);
+        if (_badge.autoClearOnForeground && s == AppLifecycleState.resumed) {
+          unawaited(_clearBadgeSafely());
+        }
+      }),
+    );
+
     for (final c in list) {
       await createChannel(c);
     }
@@ -170,19 +187,14 @@ class PushNotifications {
     _subs.addAll([
       _messaging.onMessage.listen(_onForegroundMessage),
       _messaging.onMessageOpenedApp.listen(
-        (m) => _dispatcher.handleTap(_fromRemote(m, PushAppState.background)),
+        (m) => _dispatcher.handleTap(_fromRemote(m, _liveTapState())),
       ),
       _messaging.onTokenRefresh.listen(_tokens.add),
     ]);
 
     if (_badge.autoClearOnForeground) {
-      // The app is in the foreground while init runs, so clear once now and
-      // again every time it returns to the foreground.
-      _subs.add(
-        _lifecycleStates().listen((s) {
-          if (s == AppLifecycleState.resumed) unawaited(_clearBadgeSafely());
-        }),
-      );
+      // The app is in the foreground while init runs, so clear once now; the
+      // lifecycle listener above clears again every time it resumes.
       await _clearBadgeSafely();
     }
 
@@ -320,10 +332,23 @@ class PushNotifications {
         defaultChannelId: _defaultChannelId,
       );
 
-  /// App state of a live (not launch) tap, read when the tap arrives: the
-  /// app was in the foreground only if it is resumed.
+  void _noteLifecycle(AppLifecycleState? s) {
+    if (s != null && s != AppLifecycleState.inactive) _lastActiveOrHidden = s;
+  }
+
+  /// App state of a live (not launch) tap delivered by a Dart plugin
+  /// (flutter_local_notifications responses, `onMessageOpenedApp`):
+  /// `foreground` if the last lifecycle state other than `inactive` was
+  /// `resumed`, otherwise `background`.
+  ///
+  /// `inactive` is skipped because it is transitional on both sides of a tap:
+  /// opening the shade or tapping a notification of a resumed app makes it
+  /// inactive just before the tap reaches Dart (Android pauses the activity
+  /// around `onNewIntent`), and an app returning from the background passes
+  /// through inactive before resumed. The state the app was in before that
+  /// transition is the one the user tapped from.
   PushAppState _liveTapState() =>
-      _currentLifecycleState() == AppLifecycleState.resumed
+      _lastActiveOrHidden == AppLifecycleState.resumed
       ? PushAppState.foreground
       : PushAppState.background;
 
@@ -332,8 +357,18 @@ class PushNotifications {
     unawaited(_dispatcher.handleTap(_fromPayload(payload, _liveTapState())));
   }
 
-  void _onNativeTap(String payload) =>
-      unawaited(_dispatcher.handleTap(_fromPayload(payload, _liveTapState())));
+  /// A tap posted natively by this plugin. Its state was captured natively
+  /// when the tap was received (iOS `applicationState == .active`, Android
+  /// host activity resumed since it was last started), because the Dart
+  /// lifecycle can change before this call arrives.
+  void _onNativeTap(String payload, bool appWasActive) => unawaited(
+    _dispatcher.handleTap(
+      _fromPayload(
+        payload,
+        appWasActive ? PushAppState.foreground : PushAppState.background,
+      ),
+    ),
+  );
 
   Future<void> _onForegroundMessage(RemoteMessage rm) async {
     final id = rm.messageId;
@@ -444,7 +479,8 @@ class PushNotifications {
 
 class _NativeTapHandler implements PushFlutterApi {
   _NativeTapHandler(this._onTap);
-  final void Function(String payload) _onTap;
+  final void Function(String payload, bool appWasActive) _onTap;
   @override
-  void onNativeTap(String payload) => _onTap(payload);
+  void onNativeTap(String payload, bool appWasActive) =>
+      _onTap(payload, appWasActive);
 }

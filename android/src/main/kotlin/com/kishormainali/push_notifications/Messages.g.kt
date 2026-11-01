@@ -739,13 +739,18 @@ class PushFlutterApi(private val binaryMessenger: BinaryMessenger, private val m
       MessagesPigeonCodec()
     }
   }
-  suspend fun onNativeTap(payloadArg: String)
+  /**
+   * A tap on a notification posted by this plugin. [appWasActive] is the
+   * app's state captured natively when the tap was received (it labels
+   * `PushMessage.appState`; Dart's lifecycle may have changed since).
+   */
+  suspend fun onNativeTap(payloadArg: String, appWasActiveArg: Boolean)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     return suspendCancellableCoroutine { continuation ->
       val channelName = "dev.flutter.pigeon.push_notifications.PushFlutterApi.onNativeTap$separatedMessageChannelSuffix"
       val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-      channel.send(listOf(payloadArg)) {
+      channel.send(listOf(payloadArg, appWasActiveArg)) {
         if (it is List<*>) {
           if (it.size > 1) {
             continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))

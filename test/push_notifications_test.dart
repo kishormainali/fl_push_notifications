@@ -28,6 +28,15 @@ void main() {
   late List<PushMessage> taps;
   PushFlutterApi? nativeApi;
   AppLifecycleState? lifecycle;
+  late StreamController<AppLifecycleState> lifecycleCtl;
+
+  /// Reports a lifecycle change the way WidgetsBinding does: the current
+  /// state changes and the observer stream emits it.
+  Future<void> moveTo(AppLifecycleState s) async {
+    lifecycle = s;
+    lifecycleCtl.add(s);
+    await pump();
+  }
 
   PushNotifications build({bool isIOS = false}) => PushNotifications.withPorts(
     msg,
@@ -36,6 +45,7 @@ void main() {
     isIOS: isIOS,
     registerFlutterApi: (a) => nativeApi = a,
     currentLifecycleState: () => lifecycle,
+    lifecycleStates: () => lifecycleCtl.stream,
   );
 
   Future<PushNotifications> started({
@@ -70,7 +80,10 @@ void main() {
     taps = [];
     nativeApi = null;
     lifecycle = AppLifecycleState.resumed;
+    lifecycleCtl = StreamController<AppLifecycleState>.broadcast();
   });
+
+  tearDown(() => lifecycleCtl.close());
 
   test(
     'init persists background config once with the configured values',
@@ -119,13 +132,18 @@ void main() {
     expect(taps[1].source, MessageSource.local);
   });
 
-  test('onMessageOpenedApp becomes a background tap', () async {
-    await started();
-    msg.openedCtl.add(rm('x'));
-    await pump();
-    expect(taps.single.appState, PushAppState.background);
-    expect(taps.single.source, MessageSource.remote);
-  });
+  test(
+    'onMessageOpenedApp after the app was paused is a background tap',
+    () async {
+      await started();
+      await moveTo(AppLifecycleState.paused);
+      await moveTo(AppLifecycleState.inactive);
+      msg.openedCtl.add(rm('x'));
+      await pump();
+      expect(taps.single.appState, PushAppState.background);
+      expect(taps.single.source, MessageSource.remote);
+    },
+  );
 
   test('local port tap becomes a tap with source local', () async {
     await started();
@@ -143,35 +161,80 @@ void main() {
     expect(taps.single.id, 'l1');
   });
 
-  group('live tap appState follows the lifecycle at tap time', () {
-    test(
-      'local tap while resumed is foreground, otherwise background',
-      () async {
-        await started();
-        local.onTap!('{"id":"l1"}');
-        lifecycle = AppLifecycleState.inactive;
-        local.onTap!('{"id":"l2"}');
-        lifecycle = AppLifecycleState.paused;
-        local.onTap!('{"id":"l3"}');
-        lifecycle = null;
-        local.onTap!('{"id":"l4"}');
-        await pump();
-        expect(taps.map((m) => m.appState), [
-          PushAppState.foreground,
-          PushAppState.background,
-          PushAppState.background,
-          PushAppState.background,
-        ]);
-      },
-    );
+  group('live tap appState follows the last non-inactive lifecycle state', () {
+    test('resumed -> inactive -> local tap is foreground', () async {
+      await started();
+      await moveTo(AppLifecycleState.inactive);
+      local.onTap!('{"id":"l1"}');
+      await pump();
+      expect(taps.single.appState, PushAppState.foreground);
+    });
+
+    test('paused -> inactive -> local tap is background', () async {
+      await started();
+      await moveTo(AppLifecycleState.paused);
+      await moveTo(AppLifecycleState.inactive);
+      local.onTap!('{"id":"l1"}');
+      await pump();
+      expect(taps.single.appState, PushAppState.background);
+    });
+
+    test('hidden counts as background, resumed again as foreground', () async {
+      await started();
+      await moveTo(AppLifecycleState.hidden);
+      local.onTap!('{"id":"l1"}');
+      await moveTo(AppLifecycleState.inactive);
+      await moveTo(AppLifecycleState.resumed);
+      local.onTap!('{"id":"l2"}');
+      await pump();
+      expect(taps.map((m) => m.appState), [
+        PushAppState.background,
+        PushAppState.foreground,
+      ]);
+    });
+
+    test('inactive first, never resumed, is background', () async {
+      lifecycle = AppLifecycleState.inactive;
+      await started();
+      await moveTo(AppLifecycleState.inactive);
+      local.onTap!('{"id":"l1"}');
+      await pump();
+      expect(taps.single.appState, PushAppState.background);
+    });
+
+    test('no lifecycle state known is background', () async {
+      lifecycle = null;
+      await started();
+      local.onTap!('{"id":"l1"}');
+      await pump();
+      expect(taps.single.appState, PushAppState.background);
+    });
+
+    test('onMessageOpenedApp uses the same rule', () async {
+      await started();
+      await moveTo(AppLifecycleState.inactive);
+      msg.openedCtl.add(rm('o1'));
+      await pump();
+      await moveTo(AppLifecycleState.paused);
+      await moveTo(AppLifecycleState.inactive);
+      msg.openedCtl.add(rm('o2'));
+      await pump();
+      expect(taps.map((m) => m.appState), [
+        PushAppState.foreground,
+        PushAppState.background,
+      ]);
+    });
 
     test(
-      'native tap while resumed is foreground, otherwise background',
+      'native tap uses the natively captured state, not the lifecycle',
       () async {
         await started();
-        nativeApi!.onNativeTap('{"id":"n1"}');
-        lifecycle = AppLifecycleState.hidden;
-        nativeApi!.onNativeTap('{"id":"n2"}');
+        // The Dart lifecycle may have moved on before the native tap arrives
+        // (e.g. resumed overtaking a background tap), so it is ignored.
+        await moveTo(AppLifecycleState.paused);
+        nativeApi!.onNativeTap('{"id":"n1"}', true);
+        await moveTo(AppLifecycleState.resumed);
+        nativeApi!.onNativeTap('{"id":"n2"}', false);
         await pump();
         expect(taps.map((m) => m.appState), [
           PushAppState.foreground,
@@ -183,8 +246,10 @@ void main() {
     test('launch taps stay terminated even while resumed', () async {
       host.nativeLaunchPayload = '{"id":"n3"}';
       local.launch = '{"id":"l5"}';
+      msg.initial = rm('r1');
       await started();
       expect(taps.map((m) => m.appState), [
+        PushAppState.terminated,
         PushAppState.terminated,
         PushAppState.terminated,
       ]);
@@ -193,7 +258,7 @@ void main() {
 
   test('native tap payload becomes a local tap', () async {
     await started();
-    nativeApi!.onNativeTap('{"id":"n1","title":"hi"}');
+    nativeApi!.onNativeTap('{"id":"n1","title":"hi"}', true);
     await pump();
     expect(taps.single.id, 'n1');
     expect(taps.single.source, MessageSource.local);

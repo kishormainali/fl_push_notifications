@@ -1,25 +1,39 @@
 import Foundation
 
-/// Thread-safe FIFO of tap payloads not yet delivered to Dart.
+/// A native tap: its payload and whether the app was active when the tap was
+/// received (captured synchronously in `didReceive`; it labels
+/// `PushMessage.appState` in Dart, whose lifecycle may change before the tap
+/// reaches it).
+public struct NativeTap: Equatable {
+  public let payload: String
+  public let appWasActive: Bool
+
+  public init(payload: String, appWasActive: Bool) {
+    self.payload = payload
+    self.appWasActive = appWasActive
+  }
+}
+
+/// Thread-safe FIFO of taps not yet delivered to Dart.
 public final class TapPayloadQueue {
   private let lock = NSLock()
-  private var items: [String] = []
+  private var items: [NativeTap] = []
 
   public init() {}
 
-  public func enqueue(_ p: String) {
+  public func enqueue(_ t: NativeTap) {
     lock.lock()
-    items.append(p)
+    items.append(t)
     lock.unlock()
   }
 
-  public func dequeue() -> String? {
+  public func dequeue() -> NativeTap? {
     lock.lock()
     defer { lock.unlock() }
     return items.isEmpty ? nil : items.removeFirst()
   }
 
-  public func drain() -> [String] {
+  public func drain() -> [NativeTap] {
     lock.lock()
     defer { lock.unlock() }
     let all = items
@@ -35,9 +49,10 @@ public final class TapPayloadQueue {
 /// delivery to the calling engine, returns the oldest tap as the launch tap
 /// and pushes the rest live. Afterwards taps go live; a failed live delivery
 /// is queued again and retried, in order, on the next tap (or returned by the
-/// next `consumeLaunchPayload`).
+/// next `consumeLaunchPayload`). Every tap keeps its captured `appWasActive`
+/// while queued or re-queued.
 public final class TapRouter {
-  public typealias Deliver = (String, @escaping (Bool) -> Void) -> Void
+  public typealias Deliver = (NativeTap, @escaping (Bool) -> Void) -> Void
 
   /// Process-wide router shared by every engine's host API.
   public static let shared = TapRouter()
@@ -55,14 +70,15 @@ public final class TapRouter {
 
   public init() {}
 
-  public func handleTap(_ payload: String) {
-    queue.enqueue(payload)
+  public func handleTap(_ tap: NativeTap) {
+    queue.enqueue(tap)
     flush()
   }
 
-  /// The oldest undelivered tap, returned once. A non-nil [deliver] (the
-  /// asking engine's channel) replaces the live deliverer.
-  public func consumeLaunchPayload(deliver: Deliver? = nil) -> String? {
+  /// The oldest undelivered tap, returned once (Dart labels it `terminated`).
+  /// A non-nil [deliver] (the asking engine's channel) replaces the live
+  /// deliverer.
+  public func consumeLaunchPayload(deliver: Deliver? = nil) -> NativeTap? {
     lock.lock()
     ready = true
     if let deliver { _deliver = deliver }
@@ -78,9 +94,9 @@ public final class TapRouter {
     let send = ready ? _deliver : nil
     lock.unlock()
     guard let send else { return }
-    for p in queue.drain() {
-      send(p) { [queue] ok in
-        if !ok { queue.enqueue(p) }
+    for t in queue.drain() {
+      send(t) { [queue] ok in
+        if !ok { queue.enqueue(t) }
       }
     }
   }

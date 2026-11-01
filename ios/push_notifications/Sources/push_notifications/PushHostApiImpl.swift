@@ -42,7 +42,7 @@ final class PushHostApiImpl: PushHostApi {
   /// Called by Dart's `init` (after it registered the tap handler): binds live
   /// tap delivery to this engine and returns the launch tap.
   func consumeLaunchPayload() throws -> String? {
-    taps.consumeLaunchPayload(deliver: deliverTap)
+    taps.consumeLaunchPayload(deliver: deliverTap)?.payload
   }
 
   /// Downloads the image first (big picture only), falls back to text-only on

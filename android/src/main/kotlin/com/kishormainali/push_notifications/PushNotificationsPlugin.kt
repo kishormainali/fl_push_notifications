@@ -1,6 +1,8 @@
 package com.kishormainali.push_notifications
 
 import android.Manifest
+import android.app.Activity
+import android.app.Application
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -8,17 +10,16 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.PluginRegistry
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -28,6 +29,8 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
     private var activityBinding: ActivityPluginBinding? = null
     private var scope: CoroutineScope? = null
     private val taps = TapPayloadHolder()
+    private val activityState = ActivityActiveTracker()
+    private var lifecycleCallbacks: HostActivityCallbacks? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val messenger = flutterPluginBinding.binaryMessenger
@@ -59,7 +62,9 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
             ),
         )
         flutterApi = PushFlutterApi(messenger)
-        scope = MainScope()
+        // Main.immediate: work started from the main thread (onNewIntent) is
+        // not posted behind later main-thread messages.
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -84,42 +89,69 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
     private fun listen(binding: ActivityPluginBinding) {
         activityBinding = binding
         binding.addOnNewIntentListener(this)
+        // Attached while the activity is being created: not yet resumed.
+        activityState.reset()
+        val callbacks = HostActivityCallbacks(binding.activity, activityState)
+        binding.activity.application.registerActivityLifecycleCallbacks(callbacks)
+        lifecycleCallbacks = callbacks
     }
 
     override fun onDetachedFromActivity() {
-        activityBinding?.removeOnNewIntentListener(this)
+        activityBinding?.let { b ->
+            b.removeOnNewIntentListener(this)
+            lifecycleCallbacks?.let(b.activity.application::unregisterActivityLifecycleCallbacks)
+        }
+        lifecycleCallbacks = null
         activityBinding = null
+        activityState.reset()
     }
 
     override fun onNewIntent(intent: Intent): Boolean {
         val payload = TapPayloadHolder.take(IntentPayloadSource(intent)) ?: return false
-        deliverLive(payload)
+        // Captured now: Dart's lifecycle may change before the tap reaches it.
+        deliverLive(NativeTap(payload, activityState.appWasActive))
         return true
     }
 
     /**
-     * Sends [payload] to Dart now; if Dart is not listening yet (cold start,
-     * before init registered PushFlutterApi) it is queued behind any earlier
-     * undelivered tap for consumeLaunchPayload.
+     * Sends [tap] to Dart now; if Dart is not listening yet (cold start,
+     * before init registered PushFlutterApi) it is queued, with its captured
+     * flag, behind any earlier undelivered tap for consumeLaunchPayload.
      */
-    private fun deliverLive(payload: String) {
+    private fun deliverLive(tap: NativeTap) {
         val api = flutterApi
-        val s = scope
-        if (api == null || s == null) {
-            taps.keep(payload)
-            return
+        deliverTapLive(
+            scope,
+            tap,
+            api?.let { a -> { t: NativeTap -> a.onNativeTap(t.payload, t.appWasActive) } },
+            taps::keep,
+        )
+    }
+
+    /** Feeds the host activity's lifecycle (only that activity) to [state]. */
+    private class HostActivityCallbacks(
+        private val host: Activity,
+        private val state: ActivityActiveTracker,
+    ) : Application.ActivityLifecycleCallbacks {
+        override fun onActivityStarted(activity: Activity) {
+            if (activity === host) state.onStarted()
         }
-        s.launch {
-            try {
-                api.onNativeTap(payload)
-            } catch (e: CancellationException) {
-                taps.keep(payload)
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "onNativeTap not delivered, keeping for launch: $e")
-                taps.keep(payload)
-            }
+
+        override fun onActivityResumed(activity: Activity) {
+            if (activity === host) state.onResumed()
         }
+
+        override fun onActivityPaused(activity: Activity) {
+            if (activity === host) state.onPaused()
+        }
+
+        override fun onActivityStopped(activity: Activity) {
+            if (activity === host) state.onStopped()
+        }
+
+        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+        override fun onActivityDestroyed(activity: Activity) = Unit
     }
 
     private companion object {

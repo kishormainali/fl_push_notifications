@@ -14,34 +14,47 @@ class IntentPayloadSource(private val intent: Intent) : PayloadSource {
 }
 
 /**
+ * A native tap: its payload and whether the app was in the foreground when
+ * the tap was received natively (labels `PushMessage.appState` in Dart).
+ */
+data class NativeTap(val payload: String, val appWasActive: Boolean)
+
+/**
  * FIFO of native tap payloads not yet delivered to Dart, so no tap is lost
  * (e.g. a second tap via onNewIntent during cold start, before Dart's init
  * registered `PushFlutterApi`). Each payload is handed out exactly once.
  */
 class TapPayloadHolder {
-    private val pending = ArrayDeque<String>()
+    private val pending = ArrayDeque<NativeTap>()
 
     /** Reads and strips the launch intent's payload so it is not re-delivered. */
     @Synchronized
     fun captureLaunch(source: PayloadSource) {
-        take(source)?.let { pending.addLast(it) }
+        // A cold-start tap: the app was not in the foreground. Dart labels the
+        // launch head `terminated`; the flag matters only if it is delivered
+        // live as part of the rest.
+        take(source)?.let { pending.addLast(NativeTap(it, appWasActive = false)) }
     }
 
-    /** Keeps a payload that could not be delivered live (e.g. Dart not ready). */
+    /**
+     * Keeps a tap that could not be delivered live (e.g. Dart not ready),
+     * with the app state captured when it was received.
+     */
     @Synchronized
-    fun keep(payload: String) {
-        pending.addLast(payload)
+    fun keep(tap: NativeTap) {
+        pending.addLast(tap)
     }
 
     /**
      * Returns the oldest pending payload (the launch tap) and hands every
-     * remaining one, in order, to [deliverRest] (live delivery to Dart).
+     * remaining one, in order and with its captured flag, to [deliverRest]
+     * (live delivery to Dart).
      */
-    fun consumeLaunchPayload(deliverRest: (String) -> Unit): String? {
+    fun consumeLaunchPayload(deliverRest: (NativeTap) -> Unit): String? {
         val head: String?
-        val rest: List<String>
+        val rest: List<NativeTap>
         synchronized(this) {
-            head = pending.removeFirstOrNull()
+            head = pending.removeFirstOrNull()?.payload
             rest = pending.toList()
             pending.clear()
         }

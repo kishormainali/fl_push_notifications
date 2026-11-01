@@ -104,5 +104,8 @@ abstract class PushHostApi {
 
 @FlutterApi()
 abstract class PushFlutterApi {
-  void onNativeTap(String payload);
+  /// A tap on a notification posted by this plugin. [appWasActive] is the
+  /// app's state captured natively when the tap was received (it labels
+  /// `PushMessage.appState`; Dart's lifecycle may have changed since).
+  void onNativeTap(String payload, bool appWasActive);
 }

@@ -2,54 +2,61 @@ import XCTest
 
 @testable import PushNotificationsCore
 
+private func tap(_ p: String, _ active: Bool = false) -> NativeTap {
+  NativeTap(payload: p, appWasActive: active)
+}
+
 final class TapRouterTests: XCTestCase {
   func testQueueIsFifo() {
     let q = TapPayloadQueue()
-    q.enqueue("a")
-    q.enqueue("b")
-    XCTAssertEqual(q.dequeue(), "a")
-    XCTAssertEqual(q.dequeue(), "b")
+    q.enqueue(tap("a"))
+    q.enqueue(tap("b", true))
+    XCTAssertEqual(q.dequeue(), tap("a"))
+    XCTAssertEqual(q.dequeue(), tap("b", true))
     XCTAssertNil(q.dequeue())
   }
 
   func testTapsBeforeReadyAreQueuedAndConsumedOnce() {
-    var delivered: [String] = []
+    var delivered: [NativeTap] = []
     let r = TapRouter()
-    r.deliver = { p, done in
-      delivered.append(p)
+    r.deliver = { t, done in
+      delivered.append(t)
       done(true)
     }
-    r.handleTap("a")
+    r.handleTap(tap("a"))
     XCTAssertTrue(delivered.isEmpty, "not delivered before Dart asked for the launch payload")
-    XCTAssertEqual(r.consumeLaunchPayload(), "a")
+    XCTAssertEqual(r.consumeLaunchPayload()?.payload, "a")
     XCTAssertNil(r.consumeLaunchPayload())
   }
 
-  func testTwoUndeliveredTapsBothSurvive() {
-    var delivered: [String] = []
+  func testTwoUndeliveredTapsBothSurviveWithTheirFlags() {
+    var delivered: [NativeTap] = []
     let r = TapRouter()
-    r.deliver = { p, done in
-      delivered.append(p)
+    r.deliver = { t, done in
+      delivered.append(t)
       done(true)
     }
-    r.handleTap("a")
-    r.handleTap("b")
-    XCTAssertEqual(r.consumeLaunchPayload(), "a")
-    // The rest is pushed live once Dart is ready.
-    XCTAssertEqual(delivered, ["b"])
+    r.handleTap(tap("a"))
+    r.handleTap(tap("b", true))
+    r.handleTap(tap("c", false))
+    XCTAssertEqual(r.consumeLaunchPayload()?.payload, "a")
+    // The rest is pushed live once Dart is ready, in order, each with the
+    // app state captured when it was received.
+    XCTAssertEqual(delivered, [tap("b", true), tap("c", false)])
     XCTAssertNil(r.consumeLaunchPayload())
   }
 
-  func testAfterReadyTapsAreDeliveredLive() {
-    var delivered: [String] = []
+  func testAfterReadyTapsAreDeliveredLiveWithTheirFlag() {
+    var delivered: [NativeTap] = []
     let r = TapRouter()
-    r.deliver = { p, done in
-      delivered.append(p)
+    r.deliver = { t, done in
+      delivered.append(t)
       done(true)
     }
     XCTAssertNil(r.consumeLaunchPayload())
-    r.handleTap("x")
-    XCTAssertEqual(delivered, ["x"])
+    r.handleTap(tap("x", true))
+    r.handleTap(tap("y", false))
+    XCTAssertEqual(delivered, [tap("x", true), tap("y", false)])
     XCTAssertNil(r.consumeLaunchPayload())
   }
 
@@ -57,34 +64,34 @@ final class TapRouterTests: XCTestCase {
     let r = TapRouter()
     r.deliver = { _, done in done(false) }
     XCTAssertNil(r.consumeLaunchPayload())
-    r.handleTap("x")
-    r.handleTap("y")
-    XCTAssertEqual(r.consumeLaunchPayload(), "x")
-    XCTAssertEqual(r.consumeLaunchPayload(), "y")
+    r.handleTap(tap("x", true))
+    r.handleTap(tap("y"))
+    XCTAssertEqual(r.consumeLaunchPayload(), tap("x", true))
+    XCTAssertEqual(r.consumeLaunchPayload(), tap("y"))
     XCTAssertNil(r.consumeLaunchPayload())
   }
 
   func testNoDelivererQueues() {
     let r = TapRouter()
     XCTAssertNil(r.consumeLaunchPayload())
-    r.handleTap("x")
-    XCTAssertEqual(r.consumeLaunchPayload(), "x")
+    r.handleTap(tap("x"))
+    XCTAssertEqual(r.consumeLaunchPayload()?.payload, "x")
   }
 
-  func testRequeuedPayloadIsDrainedOnNextTap() {
-    var delivered: [String] = []
+  func testRequeuedTapKeepsItsFlagAndIsDrainedFirstOnNextTap() {
+    var delivered: [NativeTap] = []
     var accept = false
     let r = TapRouter()
-    r.deliver = { p, done in
-      if accept { delivered.append(p) }
+    r.deliver = { t, done in
+      if accept { delivered.append(t) }
       done(accept)
     }
     XCTAssertNil(r.consumeLaunchPayload())
-    r.handleTap("x")  // live delivery fails: re-queued
+    r.handleTap(tap("x", true))  // live delivery fails: re-queued
     XCTAssertTrue(delivered.isEmpty)
     accept = true
-    r.handleTap("y")  // retries x first, in order
-    XCTAssertEqual(delivered, ["x", "y"])
+    r.handleTap(tap("y", false))  // retries x first, in order, flag intact
+    XCTAssertEqual(delivered, [tap("x", true), tap("y", false)])
     XCTAssertNil(r.consumeLaunchPayload())
   }
 
@@ -93,19 +100,19 @@ final class TapRouterTests: XCTestCase {
     var main: [String] = []
     let r = TapRouter()
     // A headless engine registered first; its Dart never calls consume.
-    r.deliver = { p, done in
-      headless.append(p)
+    r.deliver = { t, done in
+      headless.append(t.payload)
       done(false)
     }
-    r.handleTap("a")
-    r.handleTap("b")
+    r.handleTap(tap("a"))
+    r.handleTap(tap("b"))
     XCTAssertEqual(
-      r.consumeLaunchPayload(deliver: { p, done in
-        main.append(p)
+      r.consumeLaunchPayload(deliver: { t, done in
+        main.append(t.payload)
         done(true)
-      }), "a")
+      })?.payload, "a")
     XCTAssertEqual(main, ["b"])
-    r.handleTap("c")
+    r.handleTap(tap("c"))
     XCTAssertEqual(main, ["b", "c"])
     XCTAssertTrue(headless.isEmpty)
   }
@@ -115,17 +122,17 @@ final class TapRouterTests: XCTestCase {
     var second: [String] = []
     let r = TapRouter()
     XCTAssertNil(
-      r.consumeLaunchPayload(deliver: { p, done in
-        first.append(p)
+      r.consumeLaunchPayload(deliver: { t, done in
+        first.append(t.payload)
         done(true)
       }))
-    r.handleTap("a")
+    r.handleTap(tap("a"))
     XCTAssertNil(
-      r.consumeLaunchPayload(deliver: { p, done in
-        second.append(p)
+      r.consumeLaunchPayload(deliver: { t, done in
+        second.append(t.payload)
         done(true)
       }))
-    r.handleTap("b")
+    r.handleTap(tap("b"))
     XCTAssertEqual(first, ["a"])
     XCTAssertEqual(second, ["b"])
   }

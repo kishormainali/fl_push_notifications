@@ -730,7 +730,10 @@ class PushHostApi {
 abstract class PushFlutterApi {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
-  void onNativeTap(String payload);
+  /// A tap on a notification posted by this plugin. [appWasActive] is the
+  /// app's state captured natively when the tap was received (it labels
+  /// `PushMessage.appState`; Dart's lifecycle may have changed since).
+  void onNativeTap(String payload, bool appWasActive);
 
   static void setUp(
     PushFlutterApi? api, {
@@ -752,8 +755,9 @@ abstract class PushFlutterApi {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
           final String arg_payload = args[0]! as String;
+          final bool arg_appWasActive = args[1]! as bool;
           try {
-            api.onNativeTap(arg_payload);
+            api.onNativeTap(arg_payload, arg_appWasActive);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

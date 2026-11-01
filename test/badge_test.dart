@@ -19,6 +19,7 @@ void main() {
     local,
     host,
     lifecycleStates: () => lifecycle.stream,
+    currentLifecycleState: () => AppLifecycleState.resumed,
   );
 
   Future<PushNotifications> started(BadgeConfig badge) async {
@@ -82,7 +83,8 @@ void main() {
     lifecycle.add(AppLifecycleState.resumed);
     await pump();
     expect(host.badgeClears, 0);
-    expect(lifecycle.hasListener, isFalse);
+    // Still listened to: the lifecycle labels live taps' appState.
+    expect(lifecycle.hasListener, isTrue);
   });
 
   test('lifecycle listener is removed when init fails', () async {

@@ -701,7 +701,10 @@ class PushHostApiSetup {
 
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol PushFlutterApiProtocol {
-  @MainActor func onNativeTap(payload payloadArg: String) async throws
+  /// A tap on a notification posted by this plugin. [appWasActive] is the
+  /// app's state captured natively when the tap was received (it labels
+  /// `PushMessage.appState`; Dart's lifecycle may have changed since).
+  @MainActor func onNativeTap(payload payloadArg: String, appWasActive appWasActiveArg: Bool) async throws
 }
 class PushFlutterApi: PushFlutterApiProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -713,11 +716,14 @@ class PushFlutterApi: PushFlutterApiProtocol {
   var codec: MessagesPigeonCodec {
     return MessagesPigeonCodec.shared
   }
-  @MainActor func onNativeTap(payload payloadArg: String) async throws {
+  /// A tap on a notification posted by this plugin. [appWasActive] is the
+  /// app's state captured natively when the tap was received (it labels
+  /// `PushMessage.appState`; Dart's lifecycle may have changed since).
+  @MainActor func onNativeTap(payload payloadArg: String, appWasActive appWasActiveArg: Bool) async throws {
     return try await withCheckedThrowingContinuation { continuation in
       let channelName: String = "dev.flutter.pigeon.push_notifications.PushFlutterApi.onNativeTap\(messageChannelSuffix)"
       let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-      channel.sendMessage([payloadArg] as [Any?]) { response in
+      channel.sendMessage([payloadArg, appWasActiveArg] as [Any?]) { response in
         guard let listResponse = response as? [Any?] else {
           continuation.resume(throwing: createConnectionError(withChannelName: channelName))
           return
