@@ -36,3 +36,7 @@ Icon?
 /Flutter/Generated.xcconfig
 /Flutter/ephemeral/
 /Flutter/flutter_export_environment.sh
+
+# SwiftPM (swift test of the Flutter-free targets)
+.build/
+.swiftpm/
