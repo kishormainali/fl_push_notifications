@@ -60,7 +60,7 @@ class PushMessage {
     RemoteMessage m,
     PushAppState state, {
     String imageKey = 'image',
-    String channelKey = 'channel',
+    String channelKey = 'channel_id',
     String defaultChannelId = 'default',
     Set<String>? knownChannels,
   }) {

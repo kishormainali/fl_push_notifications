@@ -66,31 +66,39 @@ void main() {
       () {
     const known = {'default', 'a', 'b'};
     String r(RemoteMessage m) => resolveChannelId(m,
-        known: known, defaultId: 'default', channelKey: 'channel');
+        known: known, defaultId: 'default', channelKey: 'channel_id');
     expect(
         r(const RemoteMessage(
-            data: {'channel': 'b'},
+            data: {'channel_id': 'b'},
             notification: RemoteNotification(
                 android: AndroidNotification(channelId: 'a')))),
         'a');
-    expect(r(const RemoteMessage(data: {'channel': 'b'})), 'b');
+    expect(r(const RemoteMessage(data: {'channel_id': 'b'})), 'b');
     expect(r(const RemoteMessage()), 'default');
   });
 
   test('unknown channel id falls back to default and still builds the message',
       () {
     final id = resolveChannelId(
-        const RemoteMessage(data: {'channel': 'nope'}),
+        const RemoteMessage(data: {'channel_id': 'nope'}),
         known: {'default'},
         defaultId: 'default',
-        channelKey: 'channel');
+        channelKey: 'channel_id');
     expect(id, 'default');
     final m = PushMessage.fromRemote(
-        const RemoteMessage(messageId: 'm', data: {'channel': 'nope'}),
+        const RemoteMessage(messageId: 'm', data: {'channel_id': 'nope'}),
         PushAppState.foreground,
         knownChannels: {'default'});
     expect(m.channelId, 'default');
     expect(m.id, 'm');
+  });
+
+  test('data-only message routes via default channel_id key', () {
+    final m = PushMessage.fromRemote(
+        const RemoteMessage(messageId: 'd', data: {'channel_id': 'alerts'}),
+        PushAppState.foreground,
+        knownChannels: {'default', 'alerts'});
+    expect(m.channelId, 'alerts');
   });
 
   test('corrupt local payload yields a minimal PushMessage instead of throwing',
@@ -110,7 +118,7 @@ void main() {
     final d = TapDispatcher(decisionMaker: (m) => seen.add(m.id));
     await d.markReady();
     await d.handleTap(PushMessage.fromRemote(
-        const RemoteMessage(messageId: 'u', data: {'channel': 'zzz'}),
+        const RemoteMessage(messageId: 'u', data: {'channel_id': 'zzz'}),
         PushAppState.background,
         knownChannels: {'default'}));
     expect(seen, ['u']);
