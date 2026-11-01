@@ -13,21 +13,41 @@ class IntentPayloadSource(private val intent: Intent) : PayloadSource {
     override fun remove() = intent.removeExtra(NotificationBuilder.PAYLOAD_EXTRA)
 }
 
-/** Holds a native tap payload until Dart asks for it, exactly once. */
+/**
+ * FIFO of native tap payloads not yet delivered to Dart, so no tap is lost
+ * (e.g. a second tap via onNewIntent during cold start, before Dart's init
+ * registered `PushFlutterApi`). Each payload is handed out exactly once.
+ */
 class TapPayloadHolder {
-    private var pending: String? = null
+    private val pending = ArrayDeque<String>()
 
     /** Reads and strips the launch intent's payload so it is not re-delivered. */
+    @Synchronized
     fun captureLaunch(source: PayloadSource) {
-        take(source)?.let { pending = it }
+        take(source)?.let { pending.addLast(it) }
     }
 
     /** Keeps a payload that could not be delivered live (e.g. Dart not ready). */
+    @Synchronized
     fun keep(payload: String) {
-        pending = payload
+        pending.addLast(payload)
     }
 
-    fun consumeLaunchPayload(): String? = pending.also { pending = null }
+    /**
+     * Returns the oldest pending payload (the launch tap) and hands every
+     * remaining one, in order, to [deliverRest] (live delivery to Dart).
+     */
+    fun consumeLaunchPayload(deliverRest: (String) -> Unit): String? {
+        val head: String?
+        val rest: List<String>
+        synchronized(this) {
+            head = pending.removeFirstOrNull()
+            rest = pending.toList()
+            pending.clear()
+        }
+        rest.forEach(deliverRest)
+        return head
+    }
 
     companion object {
         fun take(source: PayloadSource): String? =

@@ -13,6 +13,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.PluginRegistry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -52,7 +53,10 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
         )
         PushHostApi.setUp(
             messenger,
-            PushHostApiImpl(BadgeHandler.create(context), storage, channels, presenter, downloader, taps),
+            PushHostApiImpl(
+                BadgeHandler.create(context), storage, channels, presenter, downloader,
+                takeLaunchPayload = { taps.consumeLaunchPayload(::deliverLive) },
+            ),
         )
         flutterApi = PushFlutterApi(messenger)
         scope = MainScope()
@@ -89,22 +93,33 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
 
     override fun onNewIntent(intent: Intent): Boolean {
         val payload = TapPayloadHolder.take(IntentPayloadSource(intent)) ?: return false
+        deliverLive(payload)
+        return true
+    }
+
+    /**
+     * Sends [payload] to Dart now; if Dart is not listening yet (cold start,
+     * before init registered PushFlutterApi) it is queued behind any earlier
+     * undelivered tap for consumeLaunchPayload.
+     */
+    private fun deliverLive(payload: String) {
         val api = flutterApi
         val s = scope
         if (api == null || s == null) {
             taps.keep(payload)
-            return true
+            return
         }
         s.launch {
             try {
                 api.onNativeTap(payload)
+            } catch (e: CancellationException) {
+                taps.keep(payload)
+                throw e
             } catch (e: Exception) {
-                // Dart side not listening yet: keep it for consumeLaunchPayload.
                 Log.w(TAG, "onNativeTap not delivered, keeping for launch: $e")
                 taps.keep(payload)
             }
         }
-        return true
     }
 
     private companion object {

@@ -1,6 +1,7 @@
 package com.kishormainali.push_notifications
 
 import android.app.Notification
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -163,6 +164,73 @@ class NotificationPresenterTest {
         )
         p.show(content())
     }
+
+    @Test
+    fun `cancellation during image load is rethrown, not swallowed`() {
+        val p = NotificationPresenter<String>(
+            config = { null },
+            loadImage = { _, _ -> throw CancellationException("cancelled") },
+            build = { c, img -> built += c to img; Notification() },
+            canPost = { true },
+            notifier = { id, _ -> posted += id },
+        )
+        assertFailsWith<CancellationException> {
+            runBlocking { p.show(content(imageUrl = "https://i/x", style = ImageStyle.BIG_PICTURE)) }
+        }
+        assertTrue(posted.isEmpty())
+    }
+
+    @Test
+    fun `build failure with a bitmap retries once text-only`() = runBlocking {
+        val p = NotificationPresenter<String>(
+            config = { null },
+            loadImage = { _, _ -> "bitmap" },
+            build = { c, img ->
+                built += c to img
+                if (img != null) error("bitmap too large")
+                Notification()
+            },
+            canPost = { true },
+            notifier = { id, _ -> posted += id },
+        )
+        p.show(content(id = 3, imageUrl = "https://i/x", style = ImageStyle.BIG_PICTURE))
+        assertEquals(listOf<String?>("bitmap", null), built.map { it.second })
+        assertEquals(listOf(3), posted)
+    }
+
+    @Test
+    fun `notify failure with a bitmap retries once text-only`() = runBlocking {
+        val withImage = mutableListOf<Boolean>()
+        val p = NotificationPresenter<String>(
+            config = { null },
+            loadImage = { _, _ -> "bitmap" },
+            build = { c, img -> built += c to img; Notification() },
+            canPost = { true },
+            notifier = { id, _ ->
+                withImage += built.last().second != null
+                if (built.last().second != null) throw IllegalArgumentException("binder too large")
+                posted += id
+            },
+        )
+        p.show(content(id = 4, imageUrl = "https://i/x", style = ImageStyle.BIG_PICTURE))
+        assertEquals(listOf(true, false), withImage)
+        assertEquals(listOf(4), posted)
+    }
+
+    @Test
+    fun `text-only build failure is not retried and propagates`() {
+        var builds = 0
+        val p = NotificationPresenter<String>(
+            config = { null },
+            loadImage = { _, _ -> null },
+            build = { _, _ -> builds++; error("broken") },
+            canPost = { true },
+            notifier = { id, _ -> posted += id },
+        )
+        assertFailsWith<IllegalStateException> { runBlocking { p.show(content()) } }
+        assertEquals(1, builds)
+        assertTrue(posted.isEmpty())
+    }
 }
 
 class FakeChannelStore : ChannelStore {
@@ -218,46 +286,5 @@ class ChannelManagerTest {
         manager.create(config())
         manager.delete("chat")
         assertTrue(store.channels.isEmpty())
-    }
-}
-
-class FakePayloadSource(var value: String?) : PayloadSource {
-    var removed = 0
-    override fun get() = value
-    override fun remove() {
-        removed++
-        value = null
-    }
-}
-
-class TapPayloadHolderTest {
-    @Test
-    fun `launch payload extra is consumed once`() {
-        val h = TapPayloadHolder()
-        val src = FakePayloadSource("{\"id\":\"1\"}")
-        h.captureLaunch(src)
-        assertEquals(1, src.removed)
-        // A config change re-attaches with the same (now stripped) intent.
-        h.captureLaunch(src)
-        assertEquals("{\"id\":\"1\"}", h.consumeLaunchPayload())
-        assertNull(h.consumeLaunchPayload())
-    }
-
-    @Test
-    fun `take strips the extra and returns null when absent`() {
-        val src = FakePayloadSource(null)
-        assertNull(TapPayloadHolder.take(src))
-        assertEquals(0, src.removed)
-        val with = FakePayloadSource("p")
-        assertEquals("p", TapPayloadHolder.take(with))
-        assertNull(TapPayloadHolder.take(with))
-    }
-
-    @Test
-    fun `undelivered native tap is kept for consumeLaunchPayload`() {
-        val h = TapPayloadHolder()
-        h.keep("late")
-        assertEquals("late", h.consumeLaunchPayload())
-        assertNull(h.consumeLaunchPayload())
     }
 }

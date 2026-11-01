@@ -47,10 +47,14 @@ class ImageDownloader(private val cacheDir: File) {
         val target = File(cacheDir, "push_notifications_img_${sha256(url)}")
         if (target.isFile && target.length() > 0) return target
 
-        val timeout = timeoutMs.coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
+        // One budget for the whole download, redirects included: every hop
+        // only gets what is left of it.
         val deadline = System.nanoTime() + timeoutMs * 1_000_000
         var redirects = 0
         while (true) {
+            val remainingMs = (deadline - System.nanoTime()) / 1_000_000
+            if (remainingMs <= 0) return fail("timeout")
+            val timeout = remainingMs.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             val conn = current.openConnection() as HttpURLConnection
             try {
                 conn.instanceFollowRedirects = false

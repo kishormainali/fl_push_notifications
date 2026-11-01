@@ -10,7 +10,8 @@ class PushHostApiImpl(
     private val channels: ChannelManager,
     private val presenter: NotificationPresenter<*>,
     private val downloader: ImageDownloader,
-    private val taps: TapPayloadHolder,
+    /** Returns the launch tap and delivers any further queued taps live. */
+    private val takeLaunchPayload: () -> String?,
 ) : PushHostApi {
     override fun isBadgeSupported(): Boolean = badge.isBadgeSupported()
     override fun setBadgeCount(count: Long) = badge.setBadgeCount(count)
@@ -24,7 +25,7 @@ class PushHostApiImpl(
     override fun saveBackgroundConfig(config: BackgroundConfigMsg) =
         storage.saveBackgroundConfig(config)
     override fun loadBackgroundConfig(): BackgroundConfigMsg? = storage.loadBackgroundConfig()
-    override fun consumeLaunchPayload(): String? = taps.consumeLaunchPayload()
+    override fun consumeLaunchPayload(): String? = takeLaunchPayload()
     override suspend fun showNotification(content: NotificationContent) = presenter.show(content)
     override suspend fun downloadImage(
         url: String,

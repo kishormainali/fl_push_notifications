@@ -45,7 +45,19 @@ class ImageDownloaderTest {
                 // No Content-Length: body ends when the connection closes.
                 "/big-chunked" -> out.respond(200, ByteArray(5_000), declareLength = false)
                 "/redirect" -> out.respond(302, ByteArray(0), headers = mapOf("Location" to "/ok"))
-                else -> out.respond(500, ByteArray(0))
+                "/slow-redirect" -> {
+                    Thread.sleep(300)
+                    out.respond(302, ByteArray(0), headers = mapOf("Location" to "/slow"))
+                }
+                else -> if (path.startsWith("/chain/")) {
+                    // Each hop is slow but well under the per-request timeout.
+                    Thread.sleep(250)
+                    val n = path.removePrefix("/chain/").toInt()
+                    val next = if (n == 0) "/ok" else "/chain/${n - 1}"
+                    out.respond(302, ByteArray(0), headers = mapOf("Location" to next))
+                } else {
+                    out.respond(500, ByteArray(0))
+                }
             }
         }
     }
@@ -113,6 +125,24 @@ class ImageDownloaderTest {
         val start = System.nanoTime()
         assertNull(get("/slow", timeoutMs = 300))
         assertTrue((System.nanoTime() - start) / 1_000_000 < 1_900)
+    }
+
+    @Test
+    fun `redirect chain exceeding the total budget returns null within about timeoutMs`() {
+        val start = System.nanoTime()
+        // 5 hops x 250 ms: every hop is under the timeout, the chain is not.
+        assertNull(get("/chain/4", timeoutMs = 400))
+        val elapsedMs = (System.nanoTime() - start) / 1_000_000
+        assertTrue(elapsedMs < 750, "took $elapsedMs ms")
+        assertEquals(0, hits)
+    }
+
+    @Test
+    fun `slow headers after a redirect get only the remaining budget`() {
+        val start = System.nanoTime()
+        assertNull(get("/slow-redirect", timeoutMs = 400))
+        val elapsedMs = (System.nanoTime() - start) / 1_000_000
+        assertTrue(elapsedMs < 650, "took $elapsedMs ms")
     }
 
     @Test
