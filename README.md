@@ -101,9 +101,16 @@ source and in any app state, goes through it. `PushMessage` has `id`, `title`,
 - An exception thrown by the decision maker is caught and logged; it does not
   block later taps.
 - A repeated message id is delivered once (the dropped duplicate is logged).
-- `appState` of a tap that arrives while the app runs is `foreground` if the
-  app is resumed at that moment, otherwise `background`; launch taps are
-  `terminated`.
+- `appState` of a tap is captured where the tap is received, not when Dart
+  gets it: launch taps are `terminated`; a tap on a notification posted by the
+  plugin natively is `foreground` if the app was active when the OS reported
+  the tap (iOS `applicationState == .active`; Android: the activity had been
+  resumed since it was last started), otherwise `background`; a tap reported by
+  flutter_local_notifications or `onMessageOpenedApp` is `foreground` if the
+  last lifecycle state other than `inactive` was `resumed`, otherwise
+  `background`. A tap queued during a cold start that is not the launch tap
+  keeps its captured state. `appState` is informational (it does not affect
+  routing or de-duplication).
 
 ## Behavior by app state
 
@@ -112,7 +119,7 @@ source and in any app state, goes through it. `PushMessage` has `id`, `title`,
 
 | State | Message kind | What happens | Tap path |
 |---|---|---|---|
-| Foreground | notification | `onForegroundMessage` emits first. Android: FCM shows nothing, so the package shows a local notification (if `showForegroundNotifications`; needs a `title` or `body`). iOS: the OS presents it (alert/badge/sound, via `setForegroundNotificationPresentationOptions`); the package does not also show one. | Android: local notification tap. iOS: `onMessageOpenedApp` |
+| Foreground | notification | `onForegroundMessage` emits first. Android: FCM shows nothing, so the package shows a local notification (if `showForegroundNotifications`; needs a `title` or `body`). iOS: the OS presents it (alert/badge/sound, via `setForegroundNotificationPresentationOptions`); the package does not also show one. | Android: local notification tap (big picture: the native tap hook). iOS: `onMessageOpenedApp` |
 | Foreground | data-only | `onForegroundMessage` emits first. If `showForegroundNotifications` and `data` has a `title` or `body` (`titleKey`/`bodyKey`), the package shows a notification: Android a local one, iOS a native one (the OS presents nothing for data-only, so nothing is duplicated). A repeated message id is shown once. | Local notification tap, or the native tap hook |
 | Background | notification | The OS displays it. | `onMessageOpenedApp` |
 | Background | data-only | The package's top-level handler runs in a background isolate: it initializes Firebase, shows a notification from `data` (`title`/`body` keys), then runs your optional `onBackgroundMessage`. | Native/local notification tap |

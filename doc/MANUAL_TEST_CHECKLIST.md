@@ -12,7 +12,11 @@ data, state and source, and "Recent taps" lists it.
 ## 1. State x message kind x image (repeat on Android and iOS)
 
 For each row: send the push, confirm one notification is shown, tap it, confirm
-the decision maker runs once with the expected `appState`.
+the decision maker runs once with the expected `appState`. Foreground rows: tap
+the banner, and also pull down the shade / Notification Center and tap it there
+(the app turns inactive around the tap; it must still be `foreground`).
+Background rows: tap from the shade / lock screen after pressing Home (the app
+resumes around the tap; it must still be `background`).
 
 | # | State | Kind | Image | Expected display | Expected `appState` |
 |---|---|---|---|---|---|
@@ -81,6 +85,15 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
       Oppo launchers (`isBadgeSupported` and the actual count).
 - [ ] **[DEFERRED RISK]** Android notification tap through `onNewIntent` (app in
       background) and through cold start.
+- [ ] **[DEFERRED RISK]** Tap `appState` labels (inferred from platform event
+      ordering, not device-verified): Android foreground tap from the shade
+      (local and big-picture) is `foreground`; Android background tap on a
+      data-only notification is `background`; iOS foreground tap on a
+      notification message (`onMessageOpenedApp`) and on a data-only one
+      (native) is `foreground`, background taps `background`.
+- [ ] **[DEFERRED RISK]** Cold start with two taps (tap one, then a second
+      before the first frame): the first is `terminated`, the second keeps the
+      state it was received in (usually `background`).
 - [ ] **[DEFERRED RISK]** Android big-picture rendering (collapsed and expanded).
 - [ ] **[DEFERRED RISK]** Channel group (`groupId`) appears in system settings.
 - [ ] **[DEFERRED RISK]** Repeated id replaces the existing notification on both
