@@ -138,14 +138,16 @@ Rules that make this correct:
 ## Platform setup the package cannot do (README)
 
 - iOS images: add a Notification Service Extension target using the provided `PushNotificationService` class, and send `mutable-content: 1` from the server.
-- iOS: Push Notifications capability, Background Modes → Remote notifications, APNs key uploaded to Firebase, `Info.plist` as needed.
-- Android: `POST_NOTIFICATIONS` permission (13+), default channel meta-data for FCM notification messages (`com.google.firebase.messaging.default_notification_channel_id`) matching `defaultChannelId`, small icon.
+- iOS: Push Notifications capability, Background Modes → Background fetch and Remote notifications, APNs authentication key (.p8, key ID, Apple team ID) uploaded to Firebase console → Cloud Messaging tab, `Info.plist` as needed. Method swizzling must stay enabled (do not set `FirebaseAppDelegateProxyEnabled` to NO): the FCM Flutter plugin requires it on Apple devices and the plugin relies on Flutter's app delegate forwarding.
+- FID (recommended by Firebase docs; do not mix FID APIs and the deprecated token APIs for registration management): Android meta-data `firebase_messaging_installation_id_enabled` = true inside `<application>`; iOS `Info.plist` key `FirebaseMessagingInstallationIdEnabled` = true. Auto-init can be disabled with `FirebaseMessagingAutoInitEnabled` = NO (iOS) or `firebase_messaging_auto_init_enabled` and `firebase_analytics_collection_enabled` = false (Android); then `register()` must be called (`autoRegister` does this).
+- Android: Android 7.0+ (API 24) with Google Play services (or an emulator with Google APIs); optionally check with `GoogleApiAvailability.makeGooglePlayServicesAvailable()`. `POST_NOTIFICATIONS` permission (13+), default channel meta-data for FCM notification messages (`com.google.firebase.messaging.default_notification_channel_id`) matching `defaultChannelId`, small icon.
 - Firebase must be configured natively (`google-services.json` / `GoogleService-Info.plist`); the background isolate calls `Firebase.initializeApp()` without options, which relies on that.
 
 ## Constraints
 
 - Dart/Flutter: latest stable. Pin the latest `firebase_core`, `firebase_messaging`, `flutter_local_notifications` from pub.dev at scaffold time.
-- Platforms: Android, iOS.
+- Platforms: Android (7.0+/API 24, Google Play services required), iOS (APNs key uploaded, method swizzling enabled).
+- Setup text checked against the Firebase Flutter FCM get-started page (last updated 2026-10-28).
 - iOS packaging: Swift Package Manager only (no CocoaPods podspec). The Notification Service Extension class ships as a separate Flutter-free SwiftPM product so an extension target can depend on it.
 - The app must call `Firebase.initializeApp()` before `PushNotifications.init`.
 

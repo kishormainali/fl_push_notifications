@@ -29,3 +29,4 @@
 * `init` reads the app lifecycle through `WidgetsBinding` (to label tap
   `appState`), so call `WidgetsFlutterBinding.ensureInitialized()` before it
   (already needed for `Firebase.initializeApp()`).
+* docs: setup aligned with Firebase docs

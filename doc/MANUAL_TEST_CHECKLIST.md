@@ -9,6 +9,19 @@ devices and need extra attention.
 Tap result for every case: the detail page opens with the right title, body,
 data, state and source, and "Recent taps" lists it.
 
+## 0. Setup verification
+
+- [ ] Android manifest has `firebase_messaging_installation_id_enabled` = true
+      and iOS `Info.plist` has `FirebaseMessagingInstallationIdEnabled` = true.
+- [ ] The FID arrives via `onRegistered` after `init`.
+- [ ] Method swizzling is enabled (`FirebaseAppDelegateProxyEnabled` is not set
+      to NO in `Info.plist`).
+- [ ] iOS: Push Notifications capability plus Background fetch and Remote
+      notifications modes are on, and the APNs authentication key is uploaded
+      in the Firebase console (Cloud Messaging tab).
+- [ ] Android: device or emulator runs Android 7.0+ and has Google Play
+      services (emulator image with Google APIs).
+
 ## 1. State x message kind x image (repeat on Android and iOS)
 
 For each row: send the push, confirm one notification is shown, tap it, confirm

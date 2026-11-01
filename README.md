@@ -175,10 +175,12 @@ if (t != null) await api.savePlatformToken(t);
 * The APNs token only exists once the app has registered for remote
   notifications (request permission and set up push on iOS first). iOS
   simulators may never return one.
-* From the current Firebase docs: on Apple platforms the APNs token should be
-  available before FCM plugin calls (iOS SDK 10.4.0+). In firebase_messaging
-  17.0.1 the iOS `getToken()` throws `apns-token-not-set` instead of waiting
-  when it is not.
+* The Firebase docs ([get-started page](https://firebase.google.com/docs/cloud-messaging/flutter/get-started),
+  last updated 2026-10-28) state that in iOS SDK 10.4.0 and higher the APNs
+  token must be available before making API requests, so on Apple platforms
+  make sure `getAPNSToken()` is non-null before FCM plugin calls. In
+  firebase_messaging 17.0.1 the iOS `getToken()` throws `apns-token-not-set`
+  instead of waiting when it is not.
 * The FID API (`register()` / `onRegistered` / `installationId`, see above) is
   the newer direct-send identifier.
 
@@ -254,12 +256,28 @@ The Notification Service Extension is always https-only with the same limits.
 
 ## Platform setup
 
+Checked against the Firebase Flutter FCM get-started page (last updated
+2026-10-28): <https://firebase.google.com/docs/cloud-messaging/flutter/get-started>.
+Only the items marked "Firebase docs" below come from that page; the rest
+(notification permission on Android 13+, default channel and icon, desugaring,
+Swift Package Manager, the app delegate) are specific to this plugin and its
+dependencies.
+
 ### iOS
 
-1. Add the Push Notifications capability and Background Modes → Remote
-   notifications to the Runner target.
-2. Upload an APNs key to your Firebase project.
-3. In `AppDelegate.swift`, set the notification center delegate. This is
+1. Open `ios/Runner.xcworkspace` in Xcode. Add the Push Notifications capability and, under Signing & Capabilities →
+   Background Modes, enable both **Background fetch** and **Remote
+   notifications** on the Runner target (Firebase docs).
+2. Upload your APNs authentication key (.p8) to Firebase: Firebase console →
+   Settings → General → Cloud Messaging tab → iOS app configuration →
+   APNs authentication key. Upload a development and/or production key (at
+   least one) with the key ID and your Apple team ID (Firebase docs).
+3. **Keep method swizzling enabled** (Firebase docs: the FCM Flutter plugin
+   needs it on Apple devices; without it features such as FCM registration
+   handling do not work properly). Do not set `FirebaseAppDelegateProxyEnabled`
+   to `NO` in `Info.plist`. This plugin also relies on Flutter's app delegate
+   forwarding the notification callbacks.
+4. In `AppDelegate.swift`, set the notification center delegate. This is
    required so native taps are forwarded to the plugin:
 
    ```swift
@@ -272,10 +290,13 @@ The Notification Service Extension is always https-only with the same limits.
    }
    ```
 
-4. The plugin supports Swift Package Manager only (no CocoaPods). Enable it with
+5. The plugin supports Swift Package Manager only (no CocoaPods). Enable it with
    `flutter config --enable-swift-package-manager`.
-5. If you develop the plugin locally from source, the plugin folder must be
+6. If you develop the plugin locally from source, the plugin folder must be
    named `push_notifications`, because SwiftPM keys on the folder name.
+7. On Apple platforms make sure the APNs token is available before calling FCM
+   plugin APIs (Firebase docs, iOS SDK 10.4.0+); see
+   [Platform token](#platform-token-fcm-on-android-apns-on-ios).
 
 #### Notification Service Extension (iOS images)
 
@@ -297,6 +318,13 @@ The Notification Service Extension is always https-only with the same limits.
 
 ### Android
 
+- Requirements (Firebase docs): FCM clients need a device running Android 7.0
+  or higher (API 24, which is this plugin's `minSdk`) with Google Play services
+  installed, or an emulator running Android 7.0 with Google APIs. Your app is
+  not limited to Play Store distribution. If Play services may be missing, call
+  `GoogleApiAvailability.makeGooglePlayServicesAvailable()` (from
+  `com.google.android.gms.common`) in your main activity's `onCreate()` or
+  `onResume()` to check for and fix it.
 - Android 13+ needs the `POST_NOTIFICATIONS` permission (declared by the plugin;
   `requestPermission()` asks for it).
 - Set the default channel for notification messages in your app manifest, to
@@ -326,6 +354,75 @@ The Notification Service Extension is always https-only with the same limits.
   ```
 - Add `google-services.json` and the Google services Gradle plugin as described
   by FlutterFire.
+
+### Firebase Installation ID setup
+
+The Firebase docs recommend the Firebase Installation ID (FID) over the FCM
+registration token. Enable it natively:
+
+- Android: inside `<application>` in `android/app/src/main/AndroidManifest.xml`:
+
+  ```xml
+  <meta-data
+      android:name="firebase_messaging_installation_id_enabled"
+      android:value="true" />
+  ```
+
+- iOS: in `ios/Runner/Info.plist`:
+
+  ```xml
+  <key>FirebaseMessagingInstallationIdEnabled</key>
+  <true/>
+  ```
+
+The example app has both set. Subscribe to `onRegistered` before calling
+`register()` (the plugin does this for you in `init`). `onRegistered` emits the
+FID at startup and on routine sync on Android and Apple platforms when
+auto-init is enabled (default), after every `register()` call (even if already
+registered), and when a change of the FID is detected. `register()` is required
+on web, and on Android/Apple when auto-init is disabled or after
+`unregister()`; calling it re-emits the existing FID.
+
+**Caution (Firebase docs):** do not use the FID APIs and the deprecated
+registration-token APIs for registration management at the same time. In this
+plugin:
+
+- `autoRegister` (default `true`) calls `register()` and uses `onRegistered`
+  (FID). The `token`, `onTokenChanged` and `getPlatformToken()` APIs read the
+  deprecated registration token (`getToken` / `onTokenRefresh`, which Firebase
+  says will be removed in a future release).
+- New apps: enable the FID flags above and use the FID API (`onRegistered`,
+  `installationId`).
+- Apps that still rely on registration tokens only: pass `autoRegister: false`
+  to `init` and do not call the FID API (`register`, `unregister`,
+  `onRegistered`, `installationId`).
+
+Note that `autoRegister: true` calls `register()` even if you have not enabled
+the FID flags; enable them (or set `autoRegister: false`) so the app uses one
+model consistently.
+
+### Auto-init
+
+FCM auto-init is on by default. To disable it:
+
+- iOS: `Info.plist` key `FirebaseMessagingAutoInitEnabled` = `NO`.
+- Android: in `AndroidManifest.xml`, set the meta-data
+  `firebase_messaging_auto_init_enabled` to `false` and
+  `firebase_analytics_collection_enabled` to `false`.
+
+With auto-init disabled, subscribe to `onRegistered` first, then call
+`register()`. With this plugin that is the default `autoRegister: true` (`init`
+subscribes to the FID streams, then calls `register()`); with
+`autoRegister: false` you call `register()` yourself. `setAutoInitEnabled(true)`
+(from `firebase_messaging`) re-enables auto-init at runtime and the setting
+persists.
+
+### Sending a test message
+
+In the Firebase console go to Messaging → Send test message and paste your
+Firebase Installation ID (from `onRegistered` / `installationId`) or FCM
+registration token (from `token`) into the field "Add a Firebase Installation
+ID or FCM registration token".
 
 ### Background handler caveats
 
@@ -375,7 +472,8 @@ Data-only message:
 
 ## Example app and manual testing
 
-`example/` is a small app (no Firebase config files; add your own). See
+`example/` is a small app (no Firebase config files; add your own). It enables
+the Firebase Installation ID flags on both platforms. See
 [doc/MANUAL_TEST_CHECKLIST.md](doc/MANUAL_TEST_CHECKLIST.md).
 
 ## Developing the plugin
