@@ -79,6 +79,11 @@ class PushNotifications {
   /// the state at init). Labels Dart-side live taps; see [_liveTapState].
   AppLifecycleState? _lastActiveOrHidden;
 
+  /// Native taps that arrive while init has not yet delivered the launch
+  /// taps; released after them so the launch taps come first. Non-null only
+  /// during that window.
+  List<(String, bool)>? _heldNativeTaps;
+
   Future<void> init({
     required DecisionMaker decisionMaker,
     List<PushChannel> channels = const [],
@@ -182,23 +187,31 @@ class PushNotifications {
     }
     await _saveBackgroundConfig(imageHttpsOnly, onBackgroundMessage);
     _messaging.setBackgroundHandler(pushBackgroundHandler);
+    // A native side may send a live tap before (or while) Dart reads the
+    // launch taps, e.g. Android before consumeLaunchPayload replies; hold it
+    // until they are delivered.
+    _heldNativeTaps = [];
     _registerFlutterApi(_NativeTapHandler(_onNativeTap));
 
-    _subs.addAll([
-      _messaging.onMessage.listen(_onForegroundMessage),
-      _messaging.onMessageOpenedApp.listen(
-        (m) => _dispatcher.handleTap(_fromRemote(m, _liveTapState())),
-      ),
-      _messaging.onTokenRefresh.listen(_tokens.add),
-    ]);
+    try {
+      _subs.addAll([
+        _messaging.onMessage.listen(_onForegroundMessage),
+        _messaging.onMessageOpenedApp.listen(
+          (m) => _dispatcher.handleTap(_fromRemote(m, _liveTapState())),
+        ),
+        _messaging.onTokenRefresh.listen(_tokens.add),
+      ]);
 
-    if (_badge.autoClearOnForeground) {
-      // The app is in the foreground while init runs, so clear once now; the
-      // lifecycle listener above clears again every time it resumes.
-      await _clearBadgeSafely();
+      if (_badge.autoClearOnForeground) {
+        // The app is in the foreground while init runs, so clear once now; the
+        // lifecycle listener above clears again every time it resumes.
+        await _clearBadgeSafely();
+      }
+
+      await _deliverLaunchTaps();
+    } finally {
+      _releaseNativeTaps();
     }
-
-    await _deliverLaunchTaps();
   }
 
   Future<void> _saveBackgroundConfig(
@@ -343,9 +356,10 @@ class PushNotifications {
   ///
   /// `inactive` is skipped because it is transitional on both sides of a tap:
   /// opening the shade or tapping a notification of a resumed app makes it
-  /// inactive just before the tap reaches Dart (Android pauses the activity
-  /// around `onNewIntent`), and an app returning from the background passes
-  /// through inactive before resumed. The state the app was in before that
+  /// inactive just before the tap reaches Dart (window focus loss reports
+  /// inactive, and Android may also pause the activity around
+  /// `onNewIntent`), and an app returning from the background passes through
+  /// inactive before resumed. The state the app was in before that
   /// transition is the one the user tapped from.
   PushAppState _liveTapState() =>
       _lastActiveOrHidden == AppLifecycleState.resumed
@@ -358,10 +372,28 @@ class PushNotifications {
   }
 
   /// A tap posted natively by this plugin. Its state was captured natively
-  /// when the tap was received (iOS `applicationState == .active`, Android
-  /// host activity resumed since it was last started), because the Dart
-  /// lifecycle can change before this call arrives.
-  void _onNativeTap(String payload, bool appWasActive) => unawaited(
+  /// when the tap was received (iOS: active since it last became active and
+  /// not backgrounded since; Android: host activity resumed since it was last
+  /// started), because the Dart lifecycle can change before this call
+  /// arrives.
+  void _onNativeTap(String payload, bool appWasActive) {
+    final held = _heldNativeTaps;
+    if (held != null) {
+      held.add((payload, appWasActive));
+      return;
+    }
+    _dispatchNativeTap(payload, appWasActive);
+  }
+
+  void _releaseNativeTaps() {
+    final held = _heldNativeTaps;
+    _heldNativeTaps = null;
+    for (final (payload, appWasActive) in held ?? const <(String, bool)>[]) {
+      _dispatchNativeTap(payload, appWasActive);
+    }
+  }
+
+  void _dispatchNativeTap(String payload, bool appWasActive) => unawaited(
     _dispatcher.handleTap(
       _fromPayload(
         payload,

@@ -243,6 +243,41 @@ void main() {
       },
     );
 
+    test('native rest taps arriving before the launch reply stay after the '
+        'launch head', () async {
+      host.nativeLaunchPayload = '{"id":"head"}';
+      host.beforeConsumeReply = () =>
+          nativeApi!.onNativeTap('{"id":"rest"}', false);
+      await started();
+      expect(taps.map((m) => m.id), ['head', 'rest']);
+      expect(taps.map((m) => m.appState), [
+        PushAppState.terminated,
+        PushAppState.background,
+      ]);
+    });
+
+    test('native rest taps after the launch head when markReady came first '
+        'and the decision maker is async', () async {
+      msg.initial = rm('initial');
+      host.nativeLaunchPayload = '{"id":"head"}';
+      host.beforeConsumeReply = () =>
+          nativeApi!.onNativeTap('{"id":"rest"}', true);
+      final p = build();
+      p.markReady();
+      await p.init(
+        decisionMaker: (m) async {
+          taps.add(m);
+          await pump();
+        },
+        channels: [PushChannel(id: 'default', name: 'General')],
+      );
+      for (var i = 0; i < 5; i++) {
+        await pump();
+      }
+      expect(taps.map((m) => m.id), ['initial', 'head', 'rest']);
+      expect(taps.last.appState, PushAppState.foreground);
+    });
+
     test('launch taps stay terminated even while resumed', () async {
       host.nativeLaunchPayload = '{"id":"n3"}';
       local.launch = '{"id":"l5"}';

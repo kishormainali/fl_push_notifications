@@ -76,7 +76,7 @@ class ActivityActiveTrackerTest {
         val t = ActivityActiveTracker()
         t.onStarted()
         t.onResumed()
-        // Android pauses a resumed activity before delivering onNewIntent.
+        // Android may pause a resumed activity around onNewIntent.
         t.onPaused()
         assertTrue(t.appWasActive)
     }
@@ -101,6 +101,45 @@ class ActivityActiveTrackerTest {
         assertEquals(false, t.appWasActive)
         t.onResumed()
         t.reset()
+        assertEquals(false, t.appWasActive)
+    }
+}
+
+class ConsumeLaunchTest {
+    @Test
+    fun `rest taps are posted, not sent before consumeLaunchPayload returns`() {
+        val h = TapPayloadHolder()
+        h.captureLaunch(FakePayloadSource("head"))
+        h.keep(NativeTap("r1", appWasActive = true))
+        h.keep(NativeTap("r2", appWasActive = false))
+        val posted = mutableListOf<Runnable>()
+        val sent = mutableListOf<NativeTap>()
+        // The Pigeon reply (the head) goes out when this returns; a rest tap
+        // sent earlier would reach Dart before the head.
+        val head = consumeLaunchThenDeliverRest(h, posted::add, sent::add)
+        assertEquals("head", head)
+        assertTrue(sent.isEmpty(), "nothing sent before the reply")
+        posted.forEach { it.run() }
+        assertEquals(listOf(NativeTap("r1", true), NativeTap("r2", false)), sent)
+    }
+
+    @Test
+    fun `nothing is posted without rest taps`() {
+        val h = TapPayloadHolder()
+        val posted = mutableListOf<Runnable>()
+        assertEquals(null, consumeLaunchThenDeliverRest(h, posted::add) { error("no") })
+        assertTrue(posted.isEmpty())
+    }
+}
+
+class ActivityActiveTrackerSeedTest {
+    @Test
+    fun `seed reflects an activity already resumed at attach`() {
+        val t = ActivityActiveTracker()
+        t.seed(true)
+        t.onPaused()
+        assertTrue(t.appWasActive)
+        t.seed(false)
         assertEquals(false, t.appWasActive)
     }
 }

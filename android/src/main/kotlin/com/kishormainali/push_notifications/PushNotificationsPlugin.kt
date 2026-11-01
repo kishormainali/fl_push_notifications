@@ -11,6 +11,10 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -31,6 +35,7 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
     private val taps = TapPayloadHolder()
     private val activityState = ActivityActiveTracker()
     private var lifecycleCallbacks: HostActivityCallbacks? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val messenger = flutterPluginBinding.binaryMessenger
@@ -58,7 +63,10 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
             messenger,
             PushHostApiImpl(
                 BadgeHandler.create(context), storage, channels, presenter, downloader,
-                takeLaunchPayload = { taps.consumeLaunchPayload(::deliverLive) },
+                // The rest is posted: it must reach Dart after this call's reply.
+                takeLaunchPayload = {
+                    consumeLaunchThenDeliverRest(taps, { mainHandler.post(it) }, ::deliverLive)
+                },
             ),
         )
         flutterApi = PushFlutterApi(messenger)
@@ -89,8 +97,13 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
     private fun listen(binding: ActivityPluginBinding) {
         activityBinding = binding
         binding.addOnNewIntentListener(this)
-        // Attached while the activity is being created: not yet resumed.
-        activityState.reset()
+        lifecycleCallbacks?.let(binding.activity.application::unregisterActivityLifecycleCallbacks)
+        // Usually attached while the activity is being created (not resumed);
+        // a late attach to an already resumed activity is seeded as such.
+        activityState.seed(
+            (binding.activity as? LifecycleOwner)
+                ?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true,
+        )
         val callbacks = HostActivityCallbacks(binding.activity, activityState)
         binding.activity.application.registerActivityLifecycleCallbacks(callbacks)
         lifecycleCallbacks = callbacks

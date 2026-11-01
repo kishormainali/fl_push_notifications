@@ -149,10 +149,15 @@ class FakeHostApi extends PushHostApi {
     setLaunchIds.add(id);
   }
 
+  /// Runs before the reply, modelling a native side that sends live taps
+  /// before answering consumeLaunchPayload.
+  void Function()? beforeConsumeReply;
+
   @override
   Future<String?> consumeLaunchPayload() async {
     final p = nativeLaunchPayload;
     nativeLaunchPayload = null;
+    beforeConsumeReply?.call();
     return p;
   }
 }

@@ -9,6 +9,9 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
   /// outlives whichever engine registered first (possibly a headless one).
   private static let tapHandler = PushNotificationsPlugin()
   private static var tapHandlerRegistered = false
+  /// Foreground flag captured for native taps; observers are added once.
+  private static var appActive: AppActiveTracker?
+  private static var appStateObservers: [NSObjectProtocol] = []
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     // Registered for every engine, including background/headless engines.
@@ -30,7 +33,23 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
       // every registered application delegate (when it is the center's
       // delegate), each with the same completion handler.
       registrar.addApplicationDelegate(tapHandler)
+      observeAppState()
     }
+  }
+
+  /// Registration runs on the main thread, as do these notifications.
+  private static func observeAppState() {
+    let tracker = AppActiveTracker(active: UIApplication.shared.applicationState == .active)
+    appActive = tracker
+    let center = NotificationCenter.default
+    appStateObservers = [
+      center.addObserver(
+        forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+      ) { _ in tracker.didBecomeActive() },
+      center.addObserver(
+        forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+      ) { _ in tracker.didEnterBackground() },
+    ]
   }
 
   private static func deliverer(_ flutterApi: PushFlutterApi) -> TapRouter.Deliver {
@@ -70,10 +89,13 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
     let userInfo = response.notification.request.content.userInfo
     guard let payload = userInfo[NotificationBuilder.payloadKey] as? String else { return }
     if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
-      // Captured synchronously at the receive point: `.active` only for a tap
-      // made while the app was in the foreground (a tap that brings it back
-      // from the background, or launches it, arrives while `.inactive`).
-      let active = UIApplication.shared.applicationState == .active
+      // Captured synchronously at the receive point (main thread). Not
+      // `applicationState == .active`: a foreground app is `.inactive` while
+      // Notification Center is pulled down, like an app being brought back
+      // from the background. The tracker stays set until the app actually
+      // enters the background.
+      let active =
+        Self.appActive?.isActive ?? (UIApplication.shared.applicationState == .active)
       TapRouter.shared.handleTap(NativeTap(payload: payload, appWasActive: active))
     }
     completionHandler()

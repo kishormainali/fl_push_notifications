@@ -7,6 +7,24 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 
 /**
+ * Consumes the launch tap from [holder] and returns its payload (the Pigeon
+ * reply); the remaining taps are handed to [deliver], in order and with their
+ * captured flags, from a block given to [post] (the main looper), so they are
+ * sent only after the reply has gone out. Sending them before would let Dart
+ * receive them ahead of the launch head.
+ */
+internal fun consumeLaunchThenDeliverRest(
+    holder: TapPayloadHolder,
+    post: (Runnable) -> Unit,
+    deliver: (NativeTap) -> Unit,
+): String? {
+    val rest = mutableListOf<NativeTap>()
+    val head = holder.consumeLaunchPayload(rest::add)
+    if (rest.isNotEmpty()) post(Runnable { rest.forEach(deliver) })
+    return head
+}
+
+/**
  * Sends [tap] to Dart via [send]; without a [scope] or [send] (engine
  * detached) or when the send fails, the tap is handed to [keep] with its
  * captured flag.
@@ -44,12 +62,12 @@ internal fun deliverTapLive(
  * Whether the host activity is in the foreground for a tap arriving now via
  * `onNewIntent`: true iff it has been resumed since it was last started.
  *
- * The current lifecycle state cannot answer this: Android never delivers a
- * new intent to a resumed activity (a resumed one is paused first and
- * resumed after), so at `onNewIntent` the activity is at most STARTED both
- * for a tap made while it was in the foreground (resumed -> paused) and for
- * one that brings it back from the background (stopped -> started). The
- * difference is whether it was stopped in between.
+ * The current lifecycle state cannot answer this: Android may pause a
+ * resumed activity around `onNewIntent`, so at that point the activity can be
+ * STARTED both for a tap made while it was in the foreground (resumed ->
+ * paused) and for one that brings it back from the background (stopped ->
+ * started). The difference is whether it was stopped in between; the tracker
+ * gives the right answer whether or not the pause happens.
  */
 class ActivityActiveTracker {
     @Volatile
@@ -73,5 +91,10 @@ class ActivityActiveTracker {
 
     fun reset() {
         appWasActive = false
+    }
+
+    /** Sets the flag from the activity's state when the tracker attaches. */
+    fun seed(resumed: Boolean) {
+        appWasActive = resumed
     }
 }
