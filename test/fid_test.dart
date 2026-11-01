@@ -172,6 +172,34 @@ void main() {
       expect(p.installationId, isNull);
     });
 
+    test('unregister alone (autoRegister false) forwards the FID', () async {
+      final p = build();
+      await p.init(decisionMaker: taps.add, autoRegister: false);
+      final gone = <String>[];
+      p.onUnregistered.listen(gone.add);
+      await p.unregister();
+      expect(msg.unregisteredCtl.hasListener, isTrue);
+      msg.unregisteredCtl.add('fid-old');
+      await pump();
+      expect(gone, ['fid-old']);
+    });
+
+    test('register, failing init, then unregister still forwards', () async {
+      final p = build();
+      await p.register();
+      host.failLaunch = true;
+      await expectLater(p.init(decisionMaker: taps.add), throwsA(anything));
+      await pump();
+      expect(msg.unregisteredCtl.hasListener, isFalse);
+      final gone = <String>[];
+      p.onUnregistered.listen(gone.add);
+      await p.unregister();
+      msg.unregisteredCtl.add('fid-1');
+      await pump();
+      expect(gone, ['fid-1']);
+      expect(p.installationId, isNull);
+    });
+
     test('onUnregistered of another FID leaves installationId', () async {
       final p = build();
       await p.init(decisionMaker: taps.add);

@@ -217,7 +217,6 @@ class PushNotifications {
       if (autoRegister) {
         // Listeners first so the registration event cannot be missed. Not
         // awaited: registration may need the network and must not delay init.
-        _attachFidListeners();
         unawaited(_registerSafely());
       }
     } finally {
@@ -280,6 +279,7 @@ class PushNotifications {
 
   Future<void> _registerSafely() async {
     try {
+      _attachFidListeners();
       await _messaging.register();
     } catch (e) {
       debugPrint('push_notifications: register failed: $e');
@@ -297,7 +297,10 @@ class PushNotifications {
 
   /// Unregisters this app instance; the FID that is no longer active is then
   /// delivered on [onUnregistered].
-  Future<void> unregister() => _messaging.unregister();
+  Future<void> unregister() {
+    _attachFidListeners();
+    return _messaging.unregister();
+  }
 
   /// The Firebase Installation ID (FID) of this app instance each time it is
   /// registered. Broadcast, not replayed; read [installationId] for the latest.

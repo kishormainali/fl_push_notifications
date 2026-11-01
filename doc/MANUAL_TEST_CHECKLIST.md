@@ -89,7 +89,7 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
 - [ ] Topic: subscribe to "news", send to the topic, receive it.
 - [ ] Permission: denied and granted flows; Android 13+ shows the system prompt.
 
-## 6. Device-only risks to verify  **[DEFERRED RISK]**
+## 7. Device-only risks to verify  **[DEFERRED RISK]**
 
 - [ ] **[DEFERRED RISK]** iOS cold-start tap arriving before the plugin
       registers: tap with the app killed and confirm the tap is not lost.
