@@ -1,0 +1,118 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:push_notifications/src/push_message.dart';
+import 'package:push_notifications/src/tap_dispatcher.dart';
+
+void main() {
+  test('fromRemote builds with null notification and empty data', () {
+    final m = PushMessage.fromRemote(
+        const RemoteMessage(messageId: 'x'), PushAppState.terminated);
+    expect(m.id, 'x');
+    expect(m.title, isNull);
+    expect(m.body, isNull);
+    expect(m.data, isEmpty);
+    expect(m.imageUrl, isNull);
+    expect(m.channelId, 'default');
+    expect(m.source, MessageSource.remote);
+    expect(m.appState, PushAppState.terminated);
+  });
+
+  test('fromRemote generates an id when messageId is null', () {
+    final a = PushMessage.fromRemote(
+        const RemoteMessage(), PushAppState.foreground);
+    expect(a.id, isNotEmpty);
+  });
+
+  test('local payload round-trips through toLocalPayload/fromLocalPayload', () {
+    final m = PushMessage(
+      id: 'i1',
+      title: 't',
+      body: 'b',
+      data: const {'k': 'v'},
+      imageUrl: 'http://x/y.png',
+      channelId: 'c',
+      source: MessageSource.remote,
+      appState: PushAppState.foreground,
+    );
+    final r = PushMessage.fromLocalPayload(
+        m.toLocalPayload(), PushAppState.background);
+    expect(r.id, 'i1');
+    expect(r.title, 't');
+    expect(r.body, 'b');
+    expect(r.data, {'k': 'v'});
+    expect(r.imageUrl, 'http://x/y.png');
+    expect(r.source, MessageSource.local);
+    expect(r.appState, PushAppState.background);
+  });
+
+  test('imageUrl read from notification.android.imageUrl, then data[imageKey]',
+      () {
+    final a = PushMessage.fromRemote(
+        const RemoteMessage(
+          data: {'image': 'data-url'},
+          notification: RemoteNotification(
+              android: AndroidNotification(imageUrl: 'android-url')),
+        ),
+        PushAppState.foreground);
+    expect(a.imageUrl, 'android-url');
+    final b = PushMessage.fromRemote(
+        const RemoteMessage(data: {'pic': 'data-url'}),
+        PushAppState.foreground,
+        imageKey: 'pic');
+    expect(b.imageUrl, 'data-url');
+  });
+
+  test('resolveChannelId prefers android channelId, then data key, then default',
+      () {
+    const known = {'default', 'a', 'b'};
+    String r(RemoteMessage m) => resolveChannelId(m,
+        known: known, defaultId: 'default', channelKey: 'channel');
+    expect(
+        r(const RemoteMessage(
+            data: {'channel': 'b'},
+            notification: RemoteNotification(
+                android: AndroidNotification(channelId: 'a')))),
+        'a');
+    expect(r(const RemoteMessage(data: {'channel': 'b'})), 'b');
+    expect(r(const RemoteMessage()), 'default');
+  });
+
+  test('unknown channel id falls back to default and still builds the message',
+      () {
+    final id = resolveChannelId(
+        const RemoteMessage(data: {'channel': 'nope'}),
+        known: {'default'},
+        defaultId: 'default',
+        channelKey: 'channel');
+    expect(id, 'default');
+    final m = PushMessage.fromRemote(
+        const RemoteMessage(messageId: 'm', data: {'channel': 'nope'}),
+        PushAppState.foreground,
+        knownChannels: {'default'});
+    expect(m.channelId, 'default');
+    expect(m.id, 'm');
+  });
+
+  test('corrupt local payload yields a minimal PushMessage instead of throwing',
+      () {
+    for (final p in ['not json', '[1,2]', '{"id": 5, "data": 7}', '']) {
+      final m = PushMessage.fromLocalPayload(p, PushAppState.terminated,
+          defaultChannelId: 'dflt');
+      expect(m.id, isNotEmpty);
+      expect(m.data, isEmpty);
+      expect(m.channelId, 'dflt');
+      expect(m.source, MessageSource.local);
+    }
+  });
+
+  test('tap with unknown channel is still delivered', () async {
+    final seen = <String>[];
+    final d = TapDispatcher(decisionMaker: (m) => seen.add(m.id));
+    await d.markReady();
+    await d.handleTap(PushMessage.fromRemote(
+        const RemoteMessage(messageId: 'u', data: {'channel': 'zzz'}),
+        PushAppState.background,
+        knownChannels: {'default'}));
+    expect(seen, ['u']);
+  });
+}
