@@ -17,14 +17,25 @@ class FirebaseMessagingPort implements MessagingPort {
   @override
   Stream<RemoteMessage> get onMessageOpenedApp =>
       FirebaseMessaging.onMessageOpenedApp;
-  // The register()/onRegistered replacement yields an installation id, not
-  // the FCM token, so the deprecated token API is intentionally kept.
+  // register()/onRegistered yield the Firebase Installation ID (FID), not the
+  // FCM token, so the deprecated token API is intentionally kept alongside.
   @override
   // ignore: deprecated_member_use
   Future<String?> getToken() => _fm.getToken();
   @override
   // ignore: deprecated_member_use
   Stream<String> get onTokenRefresh => _fm.onTokenRefresh;
+  // firebase_messaging's onRegistered/onUnregistered are plain broadcast
+  // streams (no replay): an event emitted while nobody listens is lost, so
+  // callers must listen before register().
+  @override
+  Future<void> register() => _fm.register();
+  @override
+  Future<void> unregister() => _fm.unregister();
+  @override
+  Stream<String> get onRegistered => _fm.onRegistered;
+  @override
+  Stream<String> get onUnregistered => _fm.onUnregistered;
   @override
   Future<NotificationSettings> requestPermission() => _fm.requestPermission();
   @override

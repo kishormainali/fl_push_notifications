@@ -11,6 +11,15 @@ abstract class MessagingPort {
   Stream<RemoteMessage> get onMessageOpenedApp;
   Future<String?> getToken();
   Stream<String> get onTokenRefresh;
+
+  /// Registers this app instance with FCM; the Firebase Installation ID (FID)
+  /// is then delivered on [onRegistered].
+  Future<void> register();
+  Future<void> unregister();
+
+  /// FID events. Not replayed: only events after listening are delivered.
+  Stream<String> get onRegistered;
+  Stream<String> get onUnregistered;
   Future<NotificationSettings> requestPermission();
   Future<void> setForegroundPresentation({
     required bool alert,

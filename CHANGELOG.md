@@ -16,6 +16,10 @@
   iOS Notification Service Extension class (`PushNotificationsServiceExtension`).
   Downloads are https-only by default, with a 10 s timeout and a 5 MB cap, and
   fall back to text-only.
+* Firebase Installation ID (FID): `register()` / `unregister()`,
+  `onRegistered` / `onUnregistered` and `installationId`, with
+  `init(autoRegister: true)` registering by default (a failing registration does
+  not fail `init`). The FCM `token` / `onTokenChanged` API is unchanged.
 * Token, token refresh, topic subscription and foreground/tap streams.
 * Android (Kotlin) and iOS (Swift Package Manager only) native code via Pigeon.
 * `init` reads the app lifecycle through `WidgetsBinding` (to label tap

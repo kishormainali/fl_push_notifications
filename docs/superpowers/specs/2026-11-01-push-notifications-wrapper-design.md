@@ -54,6 +54,7 @@ await PushNotifications.instance.init(
   channelKey: 'channel_id',                    // data key for data-only messages
   showForegroundNotifications: true,          // default
   onBackgroundMessage: myTopLevelHandler,     // optional, must be top-level
+  autoRegister: true,                         // default; registers for the FID, see below
 );
 // after the router/navigator exists:
 PushNotifications.instance.markReady();
@@ -61,7 +62,8 @@ PushNotifications.instance.markReady();
 
 - `PushMessage { id, title, body, data, source (remote|local), appState (foreground|background|terminated), raw }`.
 - `Future<PermissionStatus> requestPermission()` (FCM `requestPermission`, plus `requestNotificationsPermission()` on Android 13+).
-- `Future<String?> get token`, `Stream<String> onTokenChanged` (wraps `onTokenRefresh`).
+- FCM token (unchanged): `Future<String?> get token`, `Stream<String> onTokenChanged` (wraps `onTokenRefresh`). The underlying `getToken`/`onTokenRefresh` are deprecated upstream (firebase_messaging 17) but kept.
+- Firebase Installation ID (FID), the direct-send target in newer firebase_messaging: `Future<void> register()`, `Future<void> unregister()`, `Stream<String> onRegistered`, `Stream<String> onUnregistered` (plugin-owned broadcast streams forwarding the port streams) and `String? installationId` (latest FID from `onRegistered`; cleared when `onUnregistered` emits that same FID; a different FID from `onRegistered` replaces it). `init(autoRegister: true)` subscribes to both streams first and then calls `register()` without awaiting it; a failing `register()` is logged and never fails `init`. With `autoRegister: false`, calling `register()` attaches the listeners lazily (once). The FID is only readable from the stream; there is no getter that fetches it. Dart-only: no native or Pigeon changes.
 - `Stream<PushMessage> onForegroundMessage`, `Stream<PushMessage> onTap` for analytics.
 - `subscribeToTopic` / `unsubscribeFromTopic`.
 - Badge: `Future<bool> isBadgeSupported()`, `Future<void> setBadgeCount(int)`, `Future<void> clearBadge()`, `Future<int?> getBadgeCount()` (iOS only; `null` on Android, where launchers do not expose it). Config on `init`: `badge: BadgeConfig(autoIncrementOnPush: false, autoClearOnForeground: false)`.

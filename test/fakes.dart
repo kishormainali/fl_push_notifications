@@ -12,7 +12,15 @@ class FakeMessagingPort implements MessagingPort {
   final onMessageCtl = StreamController<RemoteMessage>.broadcast();
   final openedCtl = StreamController<RemoteMessage>.broadcast();
   final tokenCtl = StreamController<String>.broadcast();
+  final registeredCtl = StreamController<String>.broadcast();
+  final unregisteredCtl = StreamController<String>.broadcast();
   int initialCalls = 0;
+  int registerCalls = 0;
+  int unregisterCalls = 0;
+  bool failRegister = false;
+
+  /// Whether onRegistered/onUnregistered had listeners at each register call.
+  final listenersAtRegister = <(bool, bool)>[];
   bool? presentationAlert;
   Function? backgroundHandler;
 
@@ -30,6 +38,22 @@ class FakeMessagingPort implements MessagingPort {
   Future<String?> getToken() async => 'tok';
   @override
   Stream<String> get onTokenRefresh => tokenCtl.stream;
+  @override
+  Future<void> register() async {
+    registerCalls++;
+    listenersAtRegister.add((
+      registeredCtl.hasListener,
+      unregisteredCtl.hasListener,
+    ));
+    if (failRegister) throw StateError('register failed');
+  }
+
+  @override
+  Future<void> unregister() async => unregisterCalls++;
+  @override
+  Stream<String> get onRegistered => registeredCtl.stream;
+  @override
+  Stream<String> get onUnregistered => unregisteredCtl.stream;
   @override
   Future<NotificationSettings> requestPermission() =>
       throw UnimplementedError();

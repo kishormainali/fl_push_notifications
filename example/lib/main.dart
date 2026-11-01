@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:push_notifications/push_notifications.dart';
@@ -98,6 +100,26 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String _status = '';
   int _badge = 3;
+  final List<StreamSubscription<String>> _fidSubs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final push = PushNotifications.instance;
+    // Rebuild to show the latest installationId when it changes.
+    _fidSubs.addAll([
+      push.onRegistered.listen((_) => setState(() {})),
+      push.onUnregistered.listen((_) => setState(() {})),
+    ]);
+  }
+
+  @override
+  void dispose() {
+    for (final s in _fidSubs) {
+      s.cancel();
+    }
+    super.dispose();
+  }
 
   Future<void> _run(String label, Future<Object?> Function() action) async {
     try {
@@ -133,6 +155,24 @@ class _HomePageState extends State<HomePage> {
           FilledButton(
             onPressed: () => _run('token', () => push.token),
             child: const Text('Show token'),
+          ),
+          Text('FID: ${push.installationId ?? 'none yet'}'),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => _run('register', push.register),
+                  child: const Text('Register'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => _run('unregister', push.unregister),
+                  child: const Text('Unregister'),
+                ),
+              ),
+            ],
           ),
           Row(
             children: [

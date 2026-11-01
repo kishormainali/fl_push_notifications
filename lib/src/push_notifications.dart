@@ -96,6 +96,7 @@ class PushNotifications {
     String titleKey = 'title',
     String bodyKey = 'body',
     bool imageHttpsOnly = true,
+    bool autoRegister = true,
   }) {
     // Repeat and concurrent calls share the in-flight (or finished) future. A
     // failure clears it so a retry can run again.
@@ -113,6 +114,7 @@ class PushNotifications {
       bodyKey: bodyKey,
       imageHttpsOnly: imageHttpsOnly,
       onBackgroundMessage: onBackgroundMessage,
+      autoRegister: autoRegister,
     );
     _initFuture = f;
     f.catchError((Object _) {
@@ -121,6 +123,7 @@ class PushNotifications {
         unawaited(sub.cancel());
       }
       _subs.clear();
+      _fidAttached = false;
     });
     return f;
   }
@@ -137,6 +140,7 @@ class PushNotifications {
     required String bodyKey,
     required bool imageHttpsOnly,
     required BackgroundMessageHook? onBackgroundMessage,
+    required bool autoRegister,
   }) async {
     final list = channels.isEmpty
         ? [PushChannel(id: defaultChannelId, name: 'General')]
@@ -209,6 +213,13 @@ class PushNotifications {
       }
 
       await _deliverLaunchTaps();
+
+      if (autoRegister) {
+        // Listeners first so the registration event cannot be missed. Not
+        // awaited: registration may need the network and must not delay init.
+        _attachFidListeners();
+        unawaited(_registerSafely());
+      }
     } finally {
       _releaseNativeTaps();
     }
@@ -244,6 +255,60 @@ class PushNotifications {
   }
 
   final StreamController<String> _tokens = StreamController<String>.broadcast();
+  final StreamController<String> _registered =
+      StreamController<String>.broadcast();
+  final StreamController<String> _unregistered =
+      StreamController<String>.broadcast();
+  bool _fidAttached = false;
+  String? _installationId;
+
+  /// Subscribes to the port's FID streams once; cancelled with [_subs].
+  void _attachFidListeners() {
+    if (_fidAttached) return;
+    _fidAttached = true;
+    _subs.addAll([
+      _messaging.onRegistered.listen((fid) {
+        _installationId = fid;
+        _registered.add(fid);
+      }),
+      _messaging.onUnregistered.listen((fid) {
+        if (_installationId == fid) _installationId = null;
+        _unregistered.add(fid);
+      }),
+    ]);
+  }
+
+  Future<void> _registerSafely() async {
+    try {
+      await _messaging.register();
+    } catch (e) {
+      debugPrint('push_notifications: register failed: $e');
+    }
+  }
+
+  /// Registers this app instance with FCM so a Firebase Installation ID (FID)
+  /// is delivered on [onRegistered]. `init` does this by default
+  /// (`autoRegister`); call it manually when `autoRegister` is false. Throws
+  /// if registration fails.
+  Future<void> register() {
+    _attachFidListeners();
+    return _messaging.register();
+  }
+
+  /// Unregisters this app instance; the FID that is no longer active is then
+  /// delivered on [onUnregistered].
+  Future<void> unregister() => _messaging.unregister();
+
+  /// The Firebase Installation ID (FID) of this app instance each time it is
+  /// registered. Broadcast, not replayed; read [installationId] for the latest.
+  Stream<String> get onRegistered => _registered.stream;
+
+  /// Emits the FID that is no longer active after [unregister].
+  Stream<String> get onUnregistered => _unregistered.stream;
+
+  /// The most recent FID seen on [onRegistered] since listeners were attached,
+  /// or `null` before the first event and after that FID is unregistered.
+  String? get installationId => _installationId;
 
   void markReady() {
     unawaited(_dispatcher.markReady());

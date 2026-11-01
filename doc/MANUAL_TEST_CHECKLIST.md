@@ -67,7 +67,19 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
 - [ ] `autoClearOnForeground`: badge clears at launch and on every resume.
 - [ ] Both options off (default): neither happens.
 
-## 5. Other
+## 5. Installation ID (FID)
+
+- [ ] After `init` (autoRegister on), `onRegistered` emits a FID once and the
+      example shows it next to the token.
+- [ ] "Unregister" then `onUnregistered` emits that FID and the example clears
+      it; "Register" brings a FID back.
+- [ ] Token: "Show token" and `onTokenChanged` behave as before.
+- DEFERRED RISK: needs a real device with Firebase configured, not covered by
+  unit tests: whether the native SDK re-emits `onRegistered` on a repeated
+  `register()`, a FID rotating after reinstall/clear data, and sending to the FID
+  from a backend.
+
+## 6. Other
 
 - [ ] Token: "Show token" returns a value; token refresh emits on
       `onTokenChanged` (e.g. after reinstall/clearing data).

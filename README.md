@@ -78,10 +78,13 @@ channel named "General" is created), `channelKey` (`'channel_id'`),
 `showForegroundNotifications` (`true`), `onBackgroundMessage`, `badge`
 (`BadgeConfig`), `imageKey` (`'image'`), `titleKey` (`'title'`), `bodyKey`
 (`'body'`), `imageHttpsOnly` (`true`). Calling `init` again returns the first
-call's result; a failed `init` can be retried.
+call's result; a failed `init` can be retried. `autoRegister` (`true`) also
+registers for the Firebase Installation ID, see
+[Installation ID (FID) and FCM token](#installation-id-fid-and-fcm-token).
 
 Other API: `markReady()`, `requestPermission()` (returns `PermissionStatus`),
-`token`, `onTokenChanged`, `onForegroundMessage`, `onTap` (for analytics),
+`token`, `onTokenChanged`, `register` / `unregister` / `onRegistered` /
+`onUnregistered` / `installationId`, `onForegroundMessage`, `onTap` (for analytics),
 `subscribeToTopic` / `unsubscribeFromTopic`, `createChannel` / `deleteChannel`,
 and the badge methods below.
 
@@ -114,6 +117,43 @@ source and in any app state, goes through it. `PushMessage` has `id`, `title`,
   keeps its captured state and is delivered after the launch tap. `appState`
   is informational (it does not affect
   routing or de-duplication).
+
+## Installation ID (FID) and FCM token
+
+With firebase_messaging 17, the direct-send target is the Firebase Installation
+ID (FID), delivered by `register()` and `onRegistered`. The FCM token API
+(`token`, `onTokenChanged`) still works unchanged, but the upstream
+`getToken` / `onTokenRefresh` / `deleteToken` it wraps are deprecated. Use the
+FID if you send to installation IDs; keep using the token if your backend sends
+to FCM tokens.
+
+```dart
+final push = PushNotifications.instance;
+// Listen before or right after init; events are not replayed.
+push.onRegistered.listen((fid) => api.saveInstallationId(fid));
+push.onUnregistered.listen((fid) => api.removeInstallationId(fid));
+await push.init(decisionMaker: ...); // autoRegister: true registers for you
+final fid = push.installationId; // latest FID seen, or null so far
+```
+
+* `autoRegister` (default `true`): `init` subscribes to the FID streams first,
+  then calls `register()` without awaiting it. A failing `register()` is logged
+  and does not fail `init`; the token API keeps working. Pass
+  `autoRegister: false` to control it yourself and call `register()` later
+  (it attaches the listeners on first use).
+* `installationId` is the most recent FID seen on `onRegistered`; it is `null`
+  until the first event and is cleared when `onUnregistered` emits that FID.
+  There is no way to read the FID without the stream.
+* `unregister()` unregisters this app instance; `onUnregistered` then emits the
+  FID that is no longer active, so remove it from your backend.
+* Semantics of firebase_messaging 17.0.1: `onRegistered` / `onUnregistered` are
+  plain broadcast streams without replay, so an event emitted while nobody
+  listens is lost (hence listen first). `register()` is implemented on Android
+  (FirebaseMessaging.register), iOS/macOS (`registerWithCompletion`) and web
+  (a no-op on unsupported browsers). Whether the native SDK emits
+  `onRegistered` again on a repeated `register()` is up to the native Firebase
+  SDK and is not guaranteed by the Dart layer; do not rely on it, and use your
+  own `onRegistered` listener (not a repeated call) to learn the FID.
 
 ## Behavior by app state
 
