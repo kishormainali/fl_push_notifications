@@ -137,6 +137,7 @@ Rules that make this correct:
 
 - Dart/Flutter: latest stable. Pin the latest `firebase_core`, `firebase_messaging`, `flutter_local_notifications` from pub.dev at scaffold time.
 - Platforms: Android, iOS.
+- iOS packaging: Swift Package Manager only (no CocoaPods podspec). The Notification Service Extension class ships as a separate Flutter-free SwiftPM product so an extension target can depend on it.
 - The app must call `Firebase.initializeApp()` before `PushNotifications.init`.
 
 ## Testing

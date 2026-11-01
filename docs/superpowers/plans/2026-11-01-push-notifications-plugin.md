@@ -14,6 +14,7 @@
 
 - Package name `push_notifications` (free on pub.dev, checked 2026-11-01). Platforms: Android, iOS only.
 - Single plugin package with `android/` and `ios/` folders; not federated.
+- iOS is **Swift Package Manager only**: the plugin ships `ios/push_notifications/Package.swift` with sources under `ios/push_notifications/Sources/push_notifications/`, and **no `.podspec`**. Pigeon's Swift output goes under that Sources folder. The `PushNotificationService` Notification Service Extension class lives in a separate Flutter-free SwiftPM library target/product (`PushNotificationsServiceExtension`) so an extension target can link it; the README also documents a copy-the-file fallback. Verify the plugin resolves with Flutter's SPM integration enabled (`flutter config --enable-swift-package-manager`). Dependencies that lack SPM support make Flutter fall back to CocoaPods for those dependencies only; record which, do not work around it.
 - Native bridge is Pigeon (`pigeons/messages.dart`); generated code is committed.
 - No router dependency; navigation happens only in the app's `decisionMaker`.
 - Background handler and `onDidReceiveBackgroundNotificationResponse` are top-level functions annotated `@pragma('vm:entry-point')`; background isolate calls `Firebase.initializeApp()` without options.
@@ -176,7 +177,7 @@
 ### Task 6: Badge (Dart, Android, iOS)
 
 **Files:**
-- Create: `lib/src/badge.dart`; `android/.../BadgeHandler.kt`; `ios/Classes/BadgeHandler.swift`
+- Create: `lib/src/badge.dart`; `android/.../BadgeHandler.kt`; `ios/push_notifications/Sources/push_notifications/BadgeHandler.swift`
 - Modify: native plugin classes to register `PushHostApi` (also for background engines), `PushNotifications` to expose badge methods and auto-options
 - Test: `test/badge_test.dart`, `android/src/test/.../BadgeHandlerTest.kt`, `example/ios` XCTest where practical
 
@@ -233,8 +234,8 @@
 ### Task 8: iOS native builder, image attachment and Notification Service Extension class
 
 **Files:**
-- Create: `ios/Classes/NotificationBuilder.swift`, `ios/Classes/ImageDownloader.swift`, `ios/Classes/PushNotificationService.swift`
-- Modify: `ios/Classes/PushNotificationsPlugin.swift` (implements `showNotification`, `downloadImage`)
+- Create: `ios/push_notifications/Sources/push_notifications/NotificationBuilder.swift`, `ios/push_notifications/Sources/push_notifications/ImageDownloader.swift`, `ios/push_notifications/Sources/push_notifications/PushNotificationService.swift`
+- Modify: `ios/push_notifications/Sources/push_notifications/PushNotificationsPlugin.swift` (implements `showNotification`, `downloadImage`)
 - Test: XCTest in `example/ios/RunnerTests` for the downloader and builder
 
 **Interfaces:**
