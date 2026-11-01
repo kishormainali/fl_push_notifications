@@ -155,6 +155,33 @@ final fid = push.installationId; // latest FID seen, or null so far
   SDK and is not guaranteed by the Dart layer; do not rely on it, and use your
   own `onRegistered` listener (not a repeated call) to learn the FID.
 
+## Platform token (FCM on Android, APNs on iOS)
+
+`getPlatformToken()` returns the native platform token: the FCM token on
+Android, the APNs device token on iOS.
+
+```dart
+final t = await PushNotifications.instance.getPlatformToken();
+if (t != null) await api.savePlatformToken(t);
+```
+
+* It differs from `token`, which is always the FCM token on every platform.
+* On iOS the APNs token is polled every 250 ms for up to `apnsTimeout`
+  (default 3 s; `Duration.zero` makes a single attempt). firebase_messaging
+  17.0.1 does not wait itself: `getAPNSToken()` returns `null` immediately
+  while APNs has not delivered a token.
+* It never throws: it returns `null` when the token is unavailable (errors are
+  logged without the token), so you can call it again later.
+* The APNs token only exists once the app has registered for remote
+  notifications (request permission and set up push on iOS first). iOS
+  simulators may never return one.
+* From the current Firebase docs: on Apple platforms the APNs token should be
+  available before FCM plugin calls (iOS SDK 10.4.0+). In firebase_messaging
+  17.0.1 the iOS `getToken()` throws `apns-token-not-set` instead of waiting
+  when it is not.
+* The FID API (`register()` / `onRegistered` / `installationId`, see above) is
+  the newer direct-send identifier.
+
 ## Behavior by app state
 
 "Notification message" is an FCM payload with a `notification` block;

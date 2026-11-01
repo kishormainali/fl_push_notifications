@@ -23,6 +23,8 @@ class FirebaseMessagingPort implements MessagingPort {
   // ignore: deprecated_member_use
   Future<String?> getToken() => _fm.getToken();
   @override
+  Future<String?> getAPNSToken() => _fm.getAPNSToken();
+  @override
   // ignore: deprecated_member_use
   Stream<String> get onTokenRefresh => _fm.onTokenRefresh;
   // firebase_messaging's onRegistered/onUnregistered are plain broadcast

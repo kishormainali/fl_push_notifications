@@ -334,6 +334,51 @@ class PushNotifications {
 
   Future<String?> get token => _messaging.getToken();
   Stream<String> get onTokenChanged => _tokens.stream;
+
+  /// The native platform token: the FCM token on Android, the APNs device
+  /// token on iOS. Unlike [token], which is always the FCM token.
+  ///
+  /// On iOS the APNs token is polled every 250 ms for up to [apnsTimeout] (a
+  /// zero timeout makes a single attempt), because firebase_messaging's
+  /// `getAPNSToken` returns `null` immediately while APNs has not delivered
+  /// one. The APNs token needs the app to have registered for remote
+  /// notifications; iOS simulators may never return one.
+  ///
+  /// Never throws: returns `null` when the token is unavailable (errors are
+  /// logged without the token), so callers can retry.
+  Future<String?> getPlatformToken({
+    Duration apnsTimeout = const Duration(seconds: 3),
+  }) async {
+    if (isIOS) return _waitForApnsToken(apnsTimeout);
+    try {
+      return await token;
+    } catch (e) {
+      debugPrint('push_notifications: getPlatformToken: FCM token failed: $e');
+      return null;
+    }
+  }
+
+  static const _apnsPollInterval = Duration(milliseconds: 250);
+
+  Future<String?> _waitForApnsToken(Duration timeout) async {
+    var waited = Duration.zero;
+    while (true) {
+      try {
+        final t = await _messaging.getAPNSToken();
+        if (t != null) return t;
+      } catch (e) {
+        debugPrint('push_notifications: getAPNSToken failed: $e');
+      }
+      final remaining = timeout - waited;
+      if (remaining <= Duration.zero) return null;
+      final step = remaining < _apnsPollInterval
+          ? remaining
+          : _apnsPollInterval;
+      await Future<void>.delayed(step);
+      waited += step;
+    }
+  }
+
   Stream<PushMessage> get onForegroundMessage => _foreground.stream;
   Stream<PushMessage> get onTap => _dispatcher.onTap;
 

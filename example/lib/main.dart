@@ -156,6 +156,13 @@ class _HomePageState extends State<HomePage> {
             onPressed: () => _run('token', () => push.token),
             child: const Text('Show token'),
           ),
+          FilledButton(
+            onPressed: () => _run('platform token', () async {
+              final t = await push.getPlatformToken();
+              return t == null ? 'null' : 'present (${t.length} chars)';
+            }),
+            child: const Text('Platform token'),
+          ),
           Text('FID: ${push.installationId ?? 'none yet'}'),
           Row(
             children: [

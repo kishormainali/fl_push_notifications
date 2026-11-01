@@ -34,8 +34,41 @@ class FakeMessagingPort implements MessagingPort {
   Stream<RemoteMessage> get onMessage => onMessageCtl.stream;
   @override
   Stream<RemoteMessage> get onMessageOpenedApp => openedCtl.stream;
+
+  /// Value returned by [getToken]; ignored when [getTokenError] is set.
+  String? fcmToken = 'tok';
+  Object? getTokenError;
+  int getTokenCalls = 0;
+
+  /// Successive getAPNSToken results; the last one repeats once exhausted.
+  List<String?> apnsResponses = [null];
+  int apnsCalls = 0;
+  Object? apnsError;
+
+  /// Order of getAPNSToken / getToken calls, to assert APNs is awaited first.
+  final callOrder = <String>[];
+
   @override
-  Future<String?> getToken() async => 'tok';
+  Future<String?> getToken() async {
+    getTokenCalls++;
+    callOrder.add('getToken');
+    final e = getTokenError;
+    if (e != null) throw e;
+    return fcmToken;
+  }
+
+  @override
+  Future<String?> getAPNSToken() async {
+    callOrder.add('getAPNSToken');
+    apnsCalls++;
+    final err = apnsError;
+    if (err != null) throw err;
+    final i = apnsCalls - 1 < apnsResponses.length
+        ? apnsCalls - 1
+        : apnsResponses.length - 1;
+    return apnsResponses[i];
+  }
+
   @override
   Stream<String> get onTokenRefresh => tokenCtl.stream;
   @override

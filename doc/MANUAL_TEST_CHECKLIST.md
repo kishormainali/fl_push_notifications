@@ -74,6 +74,11 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
 - [ ] "Unregister" then `onUnregistered` emits that FID and the example clears
       it; "Register" brings a FID back.
 - [ ] Token: "Show token" and `onTokenChanged` behave as before.
+- [ ] "Platform token": Android shows the FCM token (present); iOS real device
+      shows the APNs token (present); iOS simulator or APNs not ready shows
+      null after about 3 s without an error.
+- DEFERRED RISK: `getPlatformToken` APNs timing and the simulator behavior are
+  device-only; unit tests use fakes.
 - DEFERRED RISK: needs a real device with Firebase configured, not covered by
   unit tests: whether the native SDK re-emits `onRegistered` on a repeated
   `register()`, a FID rotating after reinstall/clear data, and sending to the FID

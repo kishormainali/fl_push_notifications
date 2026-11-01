@@ -10,6 +10,10 @@ abstract class MessagingPort {
   Stream<RemoteMessage> get onMessage;
   Stream<RemoteMessage> get onMessageOpenedApp;
   Future<String?> getToken();
+
+  /// The APNs device token on iOS/macOS; `null` elsewhere or when APNs has not
+  /// delivered one yet (it does not wait).
+  Future<String?> getAPNSToken();
   Stream<String> get onTokenRefresh;
 
   /// Registers this app instance with FCM; the Firebase Installation ID (FID)
