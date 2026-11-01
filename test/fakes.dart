@@ -1,0 +1,110 @@
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:push_notifications/src/config.dart';
+import 'package:push_notifications/src/messages.g.dart';
+import 'package:push_notifications/src/ports.dart';
+import 'package:push_notifications/src/push_message.dart';
+
+class FakeMessagingPort implements MessagingPort {
+  RemoteMessage? initial;
+  final onMessageCtl = StreamController<RemoteMessage>.broadcast();
+  final openedCtl = StreamController<RemoteMessage>.broadcast();
+  final tokenCtl = StreamController<String>.broadcast();
+  int initialCalls = 0;
+  bool? presentationAlert;
+  Function? backgroundHandler;
+
+  @override
+  Future<RemoteMessage?> getInitialMessage() async {
+    initialCalls++;
+    return initial;
+  }
+
+  @override
+  Stream<RemoteMessage> get onMessage => onMessageCtl.stream;
+  @override
+  Stream<RemoteMessage> get onMessageOpenedApp => openedCtl.stream;
+  @override
+  Future<String?> getToken() async => 'tok';
+  @override
+  Stream<String> get onTokenRefresh => tokenCtl.stream;
+  @override
+  Future<NotificationSettings> requestPermission() =>
+      throw UnimplementedError();
+  @override
+  Future<void> setForegroundPresentation({
+    required bool alert,
+    required bool badge,
+    required bool sound,
+  }) async {
+    presentationAlert = alert;
+  }
+
+  @override
+  Future<void> subscribeToTopic(String t) async {}
+  @override
+  Future<void> unsubscribeFromTopic(String t) async {}
+  @override
+  void setBackgroundHandler(BackgroundMessageHandler handler) =>
+      backgroundHandler = handler;
+}
+
+class FakeLocalPort implements LocalPort {
+  String? launch;
+  int launchCalls = 0;
+  void Function(String?, PushAppState)? onTap;
+  final shown = <(PushMessage, int)>[];
+  Function? bgTap;
+
+  @override
+  Future<void> initialize({
+    required void Function(String? payload, PushAppState state) onTap,
+    required Future<void> Function(NotificationResponse) onBackgroundTap,
+  }) async {
+    this.onTap = onTap;
+    bgTap = onBackgroundTap;
+  }
+
+  @override
+  Future<String?> launchPayload() async {
+    launchCalls++;
+    return launch;
+  }
+
+  @override
+  Future<void> createChannel(PushChannel c) async {}
+  @override
+  Future<bool> requestAndroidPermission() async => true;
+  @override
+  Future<void> show(PushMessage m, {required int id}) async =>
+      shown.add((m, id));
+}
+
+class FakeHostApi extends PushHostApi {
+  String? lastLaunchId;
+  String? nativeLaunchPayload;
+  final channels = <ChannelConfig>[];
+  final deleted = <String>[];
+  final setLaunchIds = <String>[];
+
+  @override
+  Future<void> createChannel(ChannelConfig c) async => channels.add(c);
+  @override
+  Future<void> deleteChannel(String id) async => deleted.add(id);
+  @override
+  Future<String?> getLastLaunchId() async => lastLaunchId;
+  @override
+  Future<void> setLastLaunchId(String id) async {
+    lastLaunchId = id;
+    setLaunchIds.add(id);
+  }
+
+  @override
+  Future<String?> consumeLaunchPayload() async {
+    final p = nativeLaunchPayload;
+    nativeLaunchPayload = null;
+    return p;
+  }
+}
