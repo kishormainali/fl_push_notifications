@@ -166,6 +166,9 @@ class FakeHostApi extends PushHostApi {
   int badgeIncrements = 0;
   bool failShow = false;
 
+  /// When set, showNotification waits on it before recording.
+  Completer<void>? showGate;
+
   @override
   Future<void> saveBackgroundConfig(BackgroundConfigMsg config) async =>
       savedConfigs.add(config);
@@ -173,6 +176,8 @@ class FakeHostApi extends PushHostApi {
   Future<BackgroundConfigMsg?> loadBackgroundConfig() async => storedConfig;
   @override
   Future<void> showNotification(NotificationContent content) async {
+    final gate = showGate;
+    if (gate != null) await gate.future;
     if (failShow) throw StateError('show failed');
     shownNotifications.add(content);
   }

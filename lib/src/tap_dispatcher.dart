@@ -25,6 +25,8 @@ class TapDispatcher {
 
   Stream<PushMessage> get onTap => _controller.stream;
 
+  /// Queues [m] and, once ready, delivers it. The returned future may complete
+  /// before the tap is delivered when another flush is already running.
   Future<void> handleTap(PushMessage m) async {
     if (_seen.contains(m.id)) {
       debugPrint('push_notifications: duplicate tap ${m.id} dropped');

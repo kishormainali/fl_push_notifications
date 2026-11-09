@@ -67,6 +67,9 @@ NotificationContent contentFromRemote(
 
 final LinkedHashSet<String> _seen = LinkedHashSet<String>();
 const int _seenCapacity = 50;
+// Ids whose display is in progress, so overlapping invocations of the same
+// messageId cannot both pass the duplicate check.
+final Set<String> _inFlight = <String>{};
 
 Future<void> _defaultInitFirebase() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,6 +90,11 @@ Future<void> handleBackgroundMessage(
   Future<void> Function()? initFirebase,
   Future<void> Function(RemoteMessage)? Function(int handle)? resolveHook,
 }) async {
+  // Empty-string ids count as absent. Claim the id before the first await.
+  final id = m.messageId;
+  final hasId = id != null && id.isNotEmpty;
+  final duplicate = hasId && (_seen.contains(id) || !_inFlight.add(id));
+  final claimed = hasId && !duplicate;
   try {
     final api = host ?? PushHostApi();
     final config = await api.loadBackgroundConfig();
@@ -96,9 +104,7 @@ Future<void> handleBackgroundMessage(
     // Id-less messages get one unique fallback id, used for both the
     // notification id and the tap payload id. The same id-less object
     // delivered twice therefore shows twice: there is nothing to dedupe on.
-    final id = m.messageId;
-    final effectiveId = (id == null || id.isEmpty) ? generateMessageId() : id;
-    final duplicate = id != null && _seen.contains(id);
+    final effectiveId = hasId ? id : generateMessageId();
 
     // A notification block is displayed by the OS; never display twice.
     if (m.notification == null && !duplicate) {
@@ -120,7 +126,7 @@ Future<void> handleBackgroundMessage(
         try {
           await api.showNotification(content);
           // Record only after a successful show so a redelivery can retry.
-          if (id != null) {
+          if (hasId) {
             _seen.add(id);
             while (_seen.length > _seenCapacity) {
               _seen.remove(_seen.first);
@@ -131,6 +137,7 @@ Future<void> handleBackgroundMessage(
         }
       }
     }
+    if (claimed) _inFlight.remove(id);
 
     if (config?.autoIncrementOnPush ?? false) {
       try {
@@ -160,5 +167,7 @@ Future<void> handleBackgroundMessage(
     }
   } catch (e) {
     debugPrint('push_notifications: background handler failed: $e');
+  } finally {
+    if (claimed) _inFlight.remove(id);
   }
 }

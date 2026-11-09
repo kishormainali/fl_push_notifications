@@ -224,6 +224,28 @@ void main() {
       expect(seen, ['a', 'b']);
     });
 
+    test('a tap added while the last queued tap is pending is delivered once, '
+        'in order', () async {
+      final seen = <String>[];
+      final gate = Completer<void>();
+      final d = TapDispatcher(
+        decisionMaker: (m) async {
+          seen.add(m.id);
+          if (m.id == 'b') await gate.future;
+        },
+      );
+      await d.markReady();
+      final f = d.handleTap(msg('a'));
+      await d.handleTap(msg('b'));
+      await pumpEventQueue();
+      expect(seen, ['a', 'b']);
+      await d.handleTap(msg('c'));
+      gate.complete();
+      await f;
+      await pumpEventQueue();
+      expect(seen, ['a', 'b', 'c']);
+    });
+
     test('no decision maker leaves the dispatcher usable once one is set',
         () async {
       final seen = <String>[];
