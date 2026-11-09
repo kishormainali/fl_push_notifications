@@ -1,5 +1,5 @@
-name: push_notifications_example
-description: "Demonstrates how to use the push_notifications plugin."
+name: fl_push_notifications_example
+description: "Demonstrates how to use the fl_push_notifications plugin."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -17,14 +17,14 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # For Firebase.initializeApp(); push_notifications re-exports RemoteMessage
+  # For Firebase.initializeApp(); fl_push_notifications re-exports RemoteMessage
   # and Importance, so firebase_messaging/flutter_local_notifications are not
   # needed as direct dependencies.
   firebase_core: ^5.1.0
 
-  push_notifications:
+  fl_push_notifications:
     # When depending on this package from a real application you should use:
-    #   push_notifications: ^x.y.z
+    #   fl_push_notifications: ^x.y.z
     # See https://dart.dev/tools/pub/dependencies#version-constraints
     # The example app is bundled with the plugin so we use a path dependency on
     # the parent directory to use the current plugin's version.

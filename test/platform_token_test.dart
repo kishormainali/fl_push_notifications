@@ -1,6 +1,6 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:push_notifications/src/push_notifications.dart';
+import 'package:fl_push_notifications/src/push_notifications.dart';
 
 import 'fakes.dart';
 

@@ -3,12 +3,11 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
-    kotlinOut: 'android/src/main/kotlin/com/kishormainali/push_notifications/Messages.g.kt',
+    kotlinOut: 'android/src/main/kotlin/com/kishormainali/fl_push_notifications/Messages.g.kt',
     kotlinOptions: KotlinOptions(
-      package: 'com.kishormainali.push_notifications',
+      package: 'com.kishormainali.fl_push_notifications',
     ),
-    swiftOut:
-        'ios/push_notifications/Sources/push_notifications/Messages.g.swift',
+    swiftOut: 'ios/fl_push_notifications/Sources/fl_push_notifications/Messages.g.swift',
   ),
 )
 enum ImageStyle { none, bigPicture }

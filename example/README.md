@@ -1,6 +1,6 @@
-# push_notifications_example
+# fl_push_notifications_example
 
-Demonstrates how to use the push_notifications plugin.
+Demonstrates how to use the fl_push_notifications plugin.
 
 ## Getting Started
 

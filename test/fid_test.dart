@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:push_notifications/src/push_message.dart';
-import 'package:push_notifications/src/push_notifications.dart';
+import 'package:fl_push_notifications/src/push_message.dart';
+import 'package:fl_push_notifications/src/push_notifications.dart';
 
 import 'fakes.dart';
 

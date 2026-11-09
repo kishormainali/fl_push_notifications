@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:push_notifications/src/push_message.dart';
-import 'package:push_notifications/src/tap_dispatcher.dart';
+import 'package:fl_push_notifications/src/push_message.dart';
+import 'package:fl_push_notifications/src/tap_dispatcher.dart';
 
 PushMessage msg(String id) => PushMessage(
   id: id,

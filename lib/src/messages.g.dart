@@ -450,7 +450,7 @@ class PushHostApi {
 
   Future<bool> isBadgeSupported() async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.isBadgeSupported$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.isBadgeSupported$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -469,7 +469,7 @@ class PushHostApi {
 
   Future<void> setBadgeCount(int count) async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.setBadgeCount$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.setBadgeCount$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -489,7 +489,7 @@ class PushHostApi {
 
   Future<int?> getBadgeCount() async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.getBadgeCount$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.getBadgeCount$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -508,7 +508,7 @@ class PushHostApi {
 
   Future<void> clearBadge() async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.clearBadge$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.clearBadge$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -526,7 +526,7 @@ class PushHostApi {
 
   Future<int> incrementBadge() async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.incrementBadge$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.incrementBadge$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -545,7 +545,7 @@ class PushHostApi {
 
   Future<void> createChannel(ChannelConfig c) async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.createChannel$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.createChannel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -565,7 +565,7 @@ class PushHostApi {
 
   Future<void> deleteChannel(String id) async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.deleteChannel$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.deleteChannel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -585,7 +585,7 @@ class PushHostApi {
 
   Future<String?> getLastLaunchId() async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.getLastLaunchId$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.getLastLaunchId$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -604,7 +604,7 @@ class PushHostApi {
 
   Future<void> setLastLaunchId(String id) async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.setLastLaunchId$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.setLastLaunchId$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -624,7 +624,7 @@ class PushHostApi {
 
   Future<void> saveBackgroundConfig(BackgroundConfigMsg config) async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.saveBackgroundConfig$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.saveBackgroundConfig$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -644,7 +644,7 @@ class PushHostApi {
 
   Future<BackgroundConfigMsg?> loadBackgroundConfig() async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.loadBackgroundConfig$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.loadBackgroundConfig$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -663,7 +663,7 @@ class PushHostApi {
 
   Future<String?> consumeLaunchPayload() async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.consumeLaunchPayload$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.consumeLaunchPayload$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -682,7 +682,7 @@ class PushHostApi {
 
   Future<void> showNotification(NotificationContent content) async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.showNotification$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.showNotification$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -707,7 +707,7 @@ class PushHostApi {
     bool httpsOnly,
   ) async {
     final pigeonVar_channelName =
-        'dev.flutter.pigeon.push_notifications.PushHostApi.downloadImage$pigeonVar_messageChannelSuffix';
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.downloadImage$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -745,7 +745,7 @@ abstract class PushFlutterApi {
         : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.push_notifications.PushFlutterApi.onNativeTap$messageChannelSuffix',
+        'dev.flutter.pigeon.fl_push_notifications.PushFlutterApi.onNativeTap$messageChannelSuffix',
         pigeonChannelCodec,
         binaryMessenger: binaryMessenger,
       );

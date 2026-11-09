@@ -4,10 +4,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:push_notifications/src/config.dart';
-import 'package:push_notifications/src/messages.g.dart';
-import 'package:push_notifications/src/push_message.dart';
-import 'package:push_notifications/src/push_notifications.dart';
+import 'package:fl_push_notifications/src/config.dart';
+import 'package:fl_push_notifications/src/messages.g.dart';
+import 'package:fl_push_notifications/src/push_message.dart';
+import 'package:fl_push_notifications/src/push_notifications.dart';
 
 import 'fakes.dart';
 

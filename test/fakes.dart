@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:push_notifications/src/config.dart';
-import 'package:push_notifications/src/messages.g.dart';
-import 'package:push_notifications/src/ports.dart';
-import 'package:push_notifications/src/push_message.dart';
+import 'package:fl_push_notifications/src/config.dart';
+import 'package:fl_push_notifications/src/messages.g.dart';
+import 'package:fl_push_notifications/src/ports.dart';
+import 'package:fl_push_notifications/src/push_message.dart';
 
 class FakeMessagingPort implements MessagingPort {
   RemoteMessage? initial;

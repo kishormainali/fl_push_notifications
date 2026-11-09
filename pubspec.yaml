@@ -1,9 +1,9 @@
-name: push_notifications
+name: fl_push_notifications
 description: "Unified push notifications for Flutter on Android and iOS: FCM and local notifications, tap routing, channels, badges and image notifications."
 version: 0.1.0
-homepage: https://github.com/kishormainali/push_notifications
-repository: https://github.com/kishormainali/push_notifications
-issue_tracker: https://github.com/kishormainali/push_notifications/issues
+homepage: https://github.com/kishormainali/fl_push_notifications
+repository: https://github.com/kishormainali/fl_push_notifications
+issue_tracker: https://github.com/kishormainali/fl_push_notifications/issues
 
 topics:
   - push-notifications
@@ -32,11 +32,11 @@ dev_dependencies:
   pigeon: 29.1.1
 
 flutter:
-  # Native code lives in android/ and ios/push_notifications/.
+  # Native code lives in android/ and ios/fl_push_notifications/.
   plugin:
     platforms:
       android:
-        package: com.kishormainali.push_notifications
+        package: com.kishormainali.fl_push_notifications
         pluginClass: PushNotificationsPlugin
       ios:
         pluginClass: PushNotificationsPlugin

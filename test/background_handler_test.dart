@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:push_notifications/src/background_handler.dart';
-import 'package:push_notifications/src/messages.g.dart';
-import 'package:push_notifications/src/push_message.dart';
+import 'package:fl_push_notifications/src/background_handler.dart';
+import 'package:fl_push_notifications/src/messages.g.dart';
+import 'package:fl_push_notifications/src/push_message.dart';
 
 import 'fakes.dart';
 

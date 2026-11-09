@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:push_notifications/src/push_message.dart';
-import 'package:push_notifications/src/tap_dispatcher.dart';
+import 'package:fl_push_notifications/src/push_message.dart';
+import 'package:fl_push_notifications/src/tap_dispatcher.dart';
 
 void main() {
   test('fromRemote builds with null notification and empty data', () {

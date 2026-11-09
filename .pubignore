@@ -26,5 +26,5 @@ example/.dart_tool/
 android/.gradle/
 android/build/
 android/local.properties
-ios/push_notifications/.build/
-ios/push_notifications/.swiftpm/
+ios/fl_push_notifications/.build/
+ios/fl_push_notifications/.swiftpm/

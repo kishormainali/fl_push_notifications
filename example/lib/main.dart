@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:push_notifications/push_notifications.dart';
+import 'package:fl_push_notifications/fl_push_notifications.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -72,7 +72,7 @@ class ExampleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'push_notifications example',
+      title: 'fl_push_notifications example',
       home: HomePage(startupError: startupError),
       onGenerateRoute: (settings) {
         final m = settings.arguments as PushMessage?;
@@ -134,7 +134,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final push = PushNotifications.instance;
     return Scaffold(
-      appBar: AppBar(title: const Text('push_notifications')),
+      appBar: AppBar(title: const Text('fl_push_notifications')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
