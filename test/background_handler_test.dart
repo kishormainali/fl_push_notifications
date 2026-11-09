@@ -287,10 +287,7 @@ void main() {
     await run(m);
     await run(m);
     expect(host.shownNotifications, hasLength(2));
-    expect(
-      host.shownNotifications[0].id,
-      isNot(host.shownNotifications[1].id),
-    );
+    expect(host.shownNotifications[0].id, isNot(host.shownNotifications[1].id));
   });
 
   test('a failed show does not suppress a redelivery of the same '
@@ -352,28 +349,27 @@ void main() {
     expect(host.shownNotifications, hasLength(2));
   });
 
-  test('overlapping same id: failed first show still allows redelivery',
-      () async {
-    host.showGate = Completer<void>();
-    host.failShow = true;
-    const m = RemoteMessage(messageId: 'race-2', data: {'title': 'a'});
-    final f1 = run(m);
-    await pumpEventQueue();
-    host.showGate!.complete();
-    await f1;
-    host.failShow = false;
-    await run(m);
-    expect(host.shownNotifications, hasLength(1));
-  });
+  test(
+    'overlapping same id: failed first show still allows redelivery',
+    () async {
+      host.showGate = Completer<void>();
+      host.failShow = true;
+      const m = RemoteMessage(messageId: 'race-2', data: {'title': 'a'});
+      final f1 = run(m);
+      await pumpEventQueue();
+      host.showGate!.complete();
+      await f1;
+      host.failShow = false;
+      await run(m);
+      expect(host.shownNotifications, hasLength(1));
+    },
+  );
 
   test('empty-string messageIds are treated as absent: both show with '
       'different ids', () async {
     await run(const RemoteMessage(messageId: '', data: {'title': 'a'}));
     await run(const RemoteMessage(messageId: '', data: {'title': 'b'}));
     expect(host.shownNotifications, hasLength(2));
-    expect(
-      host.shownNotifications[0].id,
-      isNot(host.shownNotifications[1].id),
-    );
+    expect(host.shownNotifications[0].id, isNot(host.shownNotifications[1].id));
   });
 }

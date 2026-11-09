@@ -31,6 +31,7 @@ typedef DecisionMaker = FutureOr<void> Function(PushMessage message);
 String? _nonEmpty(String? s) => (s == null || s.isEmpty) ? null : s;
 
 int _idCounter = 0;
+
 /// Unique-per-call fallback id (internal; not exported from the package).
 String generateMessageId() =>
     'gen-${DateTime.now().microsecondsSinceEpoch}-${_idCounter++}';

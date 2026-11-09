@@ -3,9 +3,10 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
-    kotlinOut:
-        'android/src/main/kotlin/com/kishormainali/push_notifications/Messages.g.kt',
-    kotlinOptions: KotlinOptions(package: 'com.kishormainali.push_notifications'),
+    kotlinOut: 'android/src/main/kotlin/com/kishormainali/push_notifications/Messages.g.kt',
+    kotlinOptions: KotlinOptions(
+      package: 'com.kishormainali.push_notifications',
+    ),
     swiftOut:
         'ios/push_notifications/Sources/push_notifications/Messages.g.swift',
   ),
@@ -99,7 +100,12 @@ abstract class PushHostApi {
   @async
   void showNotification(NotificationContent content);
   @async
-  String? downloadImage(String url, int timeoutMs, int maxBytes, bool httpsOnly);
+  String? downloadImage(
+    String url,
+    int timeoutMs,
+    int maxBytes,
+    bool httpsOnly,
+  );
 }
 
 @FlutterApi()

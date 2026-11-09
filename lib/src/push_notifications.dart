@@ -67,6 +67,7 @@ class PushNotifications {
   final MessagingPort _messaging;
   final LocalPort _local;
   final PushHostApi _host;
+
   /// Whether the iOS code path is used; overridable for tests.
   @visibleForTesting
   final bool isIOS;
@@ -449,6 +450,7 @@ class PushNotifications {
 
   /// Messages received while the app is in the foreground.
   Stream<PushMessage> get onForegroundMessage => _foreground.stream;
+
   /// Emits every notification tap, for observation such as analytics. Taps are
   /// handled by the `decisionMaker` passed to [init].
   Stream<PushMessage> get onTap => _dispatcher.onTap;
@@ -456,6 +458,7 @@ class PushNotifications {
   /// Subscribes this device to the FCM [topic].
   Future<void> subscribeToTopic(String topic) =>
       _messaging.subscribeToTopic(topic);
+
   /// Unsubscribes this device from the FCM [topic].
   Future<void> unsubscribeFromTopic(String topic) =>
       _messaging.unsubscribeFromTopic(topic);

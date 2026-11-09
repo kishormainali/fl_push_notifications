@@ -119,37 +119,39 @@ void main() {
   });
 
   group('single-flight flush', () {
-    test('async decision maker never runs for two taps concurrently, in order',
-        () async {
-      final events = <String>[];
-      final gates = <String, Completer<void>>{};
-      var active = 0;
-      var maxActive = 0;
-      final d = TapDispatcher(
-        decisionMaker: (m) async {
-          active++;
-          if (active > maxActive) maxActive = active;
-          events.add('start ${m.id}');
-          gates[m.id] = Completer<void>();
-          await gates[m.id]!.future;
-          events.add('end ${m.id}');
-          active--;
-        },
-      );
-      await d.markReady();
-      final f1 = d.handleTap(msg('a'));
-      final f2 = d.handleTap(msg('b'));
-      await pumpEventQueue();
-      expect(events, ['start a']);
-      gates['a']!.complete();
-      await pumpEventQueue();
-      expect(events, ['start a', 'end a', 'start b']);
-      gates['b']!.complete();
-      await Future.wait([f1, f2]);
-      await pumpEventQueue();
-      expect(events, ['start a', 'end a', 'start b', 'end b']);
-      expect(maxActive, 1);
-    });
+    test(
+      'async decision maker never runs for two taps concurrently, in order',
+      () async {
+        final events = <String>[];
+        final gates = <String, Completer<void>>{};
+        var active = 0;
+        var maxActive = 0;
+        final d = TapDispatcher(
+          decisionMaker: (m) async {
+            active++;
+            if (active > maxActive) maxActive = active;
+            events.add('start ${m.id}');
+            gates[m.id] = Completer<void>();
+            await gates[m.id]!.future;
+            events.add('end ${m.id}');
+            active--;
+          },
+        );
+        await d.markReady();
+        final f1 = d.handleTap(msg('a'));
+        final f2 = d.handleTap(msg('b'));
+        await pumpEventQueue();
+        expect(events, ['start a']);
+        gates['a']!.complete();
+        await pumpEventQueue();
+        expect(events, ['start a', 'end a', 'start b']);
+        gates['b']!.complete();
+        await Future.wait([f1, f2]);
+        await pumpEventQueue();
+        expect(events, ['start a', 'end a', 'start b', 'end b']);
+        expect(maxActive, 1);
+      },
+    );
 
     test('a throwing decision maker does not block the next tap', () async {
       final seen = <String>[];
@@ -165,27 +167,29 @@ void main() {
       expect(seen, ['a', 'b']);
     });
 
-    test('taps queued while flushing are delivered once by the running loop',
-        () async {
-      final seen = <String>[];
-      final gate = Completer<void>();
-      final d = TapDispatcher(
-        decisionMaker: (m) async {
-          seen.add(m.id);
-          if (m.id == 'a') await gate.future;
-        },
-      );
-      await d.markReady();
-      final f1 = d.handleTap(msg('a'));
-      await d.handleTap(msg('b'));
-      await d.handleTap(msg('c'));
-      await pumpEventQueue();
-      expect(seen, ['a']);
-      gate.complete();
-      await f1;
-      await pumpEventQueue();
-      expect(seen, ['a', 'b', 'c']);
-    });
+    test(
+      'taps queued while flushing are delivered once by the running loop',
+      () async {
+        final seen = <String>[];
+        final gate = Completer<void>();
+        final d = TapDispatcher(
+          decisionMaker: (m) async {
+            seen.add(m.id);
+            if (m.id == 'a') await gate.future;
+          },
+        );
+        await d.markReady();
+        final f1 = d.handleTap(msg('a'));
+        await d.handleTap(msg('b'));
+        await d.handleTap(msg('c'));
+        await pumpEventQueue();
+        expect(seen, ['a']);
+        gate.complete();
+        await f1;
+        await pumpEventQueue();
+        expect(seen, ['a', 'b', 'c']);
+      },
+    );
 
     test('markReady after taps queued before ready delivers in order and '
         'awaits completion', () async {
@@ -202,27 +206,29 @@ void main() {
       expect(seen, ['a', 'b']);
     });
 
-    test('markReady during a running flush waits for the queue to drain',
-        () async {
-      final seen = <String>[];
-      final gate = Completer<void>();
-      final d = TapDispatcher(
-        decisionMaker: (m) async {
-          if (m.id == 'a') await gate.future;
-          seen.add(m.id);
-        },
-      );
-      await d.markReady();
-      unawaited(d.handleTap(msg('a')));
-      await d.handleTap(msg('b'));
-      var done = false;
-      final f = d.markReady().then((_) => done = true);
-      await pumpEventQueue();
-      expect(done, isFalse);
-      gate.complete();
-      await f;
-      expect(seen, ['a', 'b']);
-    });
+    test(
+      'markReady during a running flush waits for the queue to drain',
+      () async {
+        final seen = <String>[];
+        final gate = Completer<void>();
+        final d = TapDispatcher(
+          decisionMaker: (m) async {
+            if (m.id == 'a') await gate.future;
+            seen.add(m.id);
+          },
+        );
+        await d.markReady();
+        unawaited(d.handleTap(msg('a')));
+        await d.handleTap(msg('b'));
+        var done = false;
+        final f = d.markReady().then((_) => done = true);
+        await pumpEventQueue();
+        expect(done, isFalse);
+        gate.complete();
+        await f;
+        expect(seen, ['a', 'b']);
+      },
+    );
 
     test('a tap added while the last queued tap is pending is delivered once, '
         'in order', () async {
@@ -246,15 +252,17 @@ void main() {
       expect(seen, ['a', 'b', 'c']);
     });
 
-    test('no decision maker leaves the dispatcher usable once one is set',
-        () async {
-      final seen = <String>[];
-      final d = TapDispatcher();
-      await d.markReady();
-      await d.handleTap(msg('a'));
-      d.decisionMaker = (m) => seen.add(m.id);
-      await d.handleTap(msg('b'));
-      expect(seen, ['a', 'b']);
-    });
+    test(
+      'no decision maker leaves the dispatcher usable once one is set',
+      () async {
+        final seen = <String>[];
+        final d = TapDispatcher();
+        await d.markReady();
+        await d.handleTap(msg('a'));
+        d.decisionMaker = (m) => seen.add(m.id);
+        await d.handleTap(msg('b'));
+        expect(seen, ['a', 'b']);
+      },
+    );
   });
 }
