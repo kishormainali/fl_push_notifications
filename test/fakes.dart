@@ -53,13 +53,9 @@ class FakeMessagingPort implements MessagingPort {
   int apnsCalls = 0;
   Object? apnsError;
 
-  /// Order of getAPNSToken / getToken calls, to assert APNs is awaited first.
-  final callOrder = <String>[];
-
   @override
   Future<String?> getToken() async {
     getTokenCalls++;
-    callOrder.add('getToken');
     final e = getTokenError;
     if (e != null) throw e;
     return fcmToken;
@@ -67,7 +63,6 @@ class FakeMessagingPort implements MessagingPort {
 
   @override
   Future<String?> getAPNSToken() async {
-    callOrder.add('getAPNSToken');
     apnsCalls++;
     final err = apnsError;
     if (err != null) throw err;
