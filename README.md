@@ -82,7 +82,7 @@ call's result; a failed `init` can be retried. `autoRegister` (`true`) also
 registers for the Firebase Installation ID, see
 [Installation ID (FID) and FCM token](#installation-id-fid-and-fcm-token).
 
-Other API: `markReady()`, `requestPermission()` (returns `PermissionStatus`),
+Other API: `markReady()`, `requestPermission()` (returns `PushPermissionStatus`),
 `token`, `onTokenChanged`, `register` / `unregister` / `onRegistered` /
 `onUnregistered` / `installationId`, `onForegroundMessage`, `onTap` (for analytics),
 `subscribeToTopic` / `unsubscribeFromTopic`, `createChannel` / `deleteChannel`,

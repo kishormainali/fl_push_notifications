@@ -16,7 +16,7 @@ import 'ports_impl.dart';
 import 'push_message.dart';
 import 'tap_dispatcher.dart';
 
-enum PermissionStatus { granted, provisional, denied, notDetermined }
+enum PushPermissionStatus { granted, provisional, denied, notDetermined }
 
 /// Optional app hook run for background messages. Must be a top-level function.
 typedef BackgroundMessageHook = Future<void> Function(RemoteMessage);
@@ -348,17 +348,17 @@ class PushNotifications {
     unawaited(_dispatcher.markReady());
   }
 
-  Future<PermissionStatus> requestPermission() async {
+  Future<PushPermissionStatus> requestPermission() async {
     final s = await _messaging.requestPermission();
     var status = switch (s.authorizationStatus) {
-      AuthorizationStatus.authorized => PermissionStatus.granted,
-      AuthorizationStatus.provisional => PermissionStatus.provisional,
-      AuthorizationStatus.denied => PermissionStatus.denied,
-      AuthorizationStatus.notDetermined => PermissionStatus.notDetermined,
-      _ => PermissionStatus.denied,
+      AuthorizationStatus.authorized => PushPermissionStatus.granted,
+      AuthorizationStatus.provisional => PushPermissionStatus.provisional,
+      AuthorizationStatus.denied => PushPermissionStatus.denied,
+      AuthorizationStatus.notDetermined => PushPermissionStatus.notDetermined,
+      _ => PushPermissionStatus.denied,
     };
     if (!isIOS && !await _local.requestAndroidPermission()) {
-      status = PermissionStatus.denied;
+      status = PushPermissionStatus.denied;
     }
     return status;
   }

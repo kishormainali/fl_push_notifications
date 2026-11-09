@@ -32,3 +32,5 @@
   `appState`), so call `WidgetsFlutterBinding.ensureInitialized()` before it
   (already needed for `Firebase.initializeApp()`).
 * docs: setup aligned with Firebase docs (FID enable flags, method swizzling, iOS Background fetch and Remote notifications modes, Android 7.0+/Play services, auto-init); example enables FIDs
+* The permission result enum is named `PushPermissionStatus` (avoids a clash with
+  permission_handler's `PermissionStatus`).
