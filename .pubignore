@@ -1,0 +1,30 @@
+# A .pubignore replaces .gitignore at this directory level, so the
+# .gitignore patterns are repeated here.
+
+# Repo-only material
+.superpowers/
+doc/superpowers/
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# IDE / OS
+*.iml
+.idea/
+.DS_Store
+
+# Example app build outputs
+example/build/
+example/.dart_tool/
+
+# Native build outputs and local config
+android/.gradle/
+android/build/
+android/local.properties
+ios/push_notifications/.build/
+ios/push_notifications/.swiftpm/
