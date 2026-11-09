@@ -18,7 +18,7 @@ the foreground, background and terminated states.
 - firebase_core ^5.1.0
 - firebase_messaging ^17.0.1
 - flutter_local_notifications ^23.0.0
-- pigeon ^29.1.0 (dev)
+- pigeon 29.1.1 (dev, pinned so CI regenerates identical output)
 
 ## Install
 
