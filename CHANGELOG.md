@@ -1,3 +1,21 @@
+## Unreleased
+
+* Android: a notification shown by the background handler carries the badge
+  count (`setNumber`) when `autoIncrementOnPush` is on; the increment now
+  happens before the notification is shown (iOS sets it as `content.badge`).
+* Android: big-picture notifications use a small thumbnail as the large icon
+  and clear the expanded large icon, so the picture is not repeated and the
+  full bitmap is not sent twice.
+* Android: a failing launcher lookup no longer escapes the badge methods; it
+  counts as an unrecognized launcher.
+* iOS: `getBadgeCount` returns the number shown on the app icon (including an
+  APNs-applied `badge`), falling back to the stored counter.
+* iOS: image downloads are accepted only when the content is a JPEG, PNG or GIF
+  (sniffed, not trusted from MIME or URL); cache hits are re-validated and the
+  cache is pruned to 50 files / 7 days.
+* iOS: the temporary attachment copy is deleted when posting a notification
+  fails.
+
 ## 0.1.0
 
 * One-call `PushNotifications.instance.init` for FCM and local notifications

@@ -30,6 +30,10 @@ NotificationContent buildNativeContent({
   required String channelId,
   required Map<String, String?> data,
   String? imageUrl,
+
+  /// App icon badge to set with the notification (Android `setNumber`, iOS
+  /// `content.badge`); null leaves it unchanged.
+  int? badge,
 }) {
   final hasImage = imageUrl != null && imageUrl.isNotEmpty;
   return NotificationContent(
@@ -40,6 +44,7 @@ NotificationContent buildNativeContent({
     data: data.map((k, v) => MapEntry<String?, String?>(k, v)),
     imageUrl: hasImage ? imageUrl : null,
     imageStyle: hasImage ? ImageStyle.bigPicture : ImageStyle.none,
+    badge: badge,
     // Native tap payload uses this as its `id` so taps dedupe by messageId.
     extras: messageId != null ? {'messageId': messageId} : const {},
   );
@@ -56,6 +61,9 @@ NotificationContent contentFromRemote(
   /// Id to use instead of [RemoteMessage.messageId] (the handler passes a
   /// generated fallback for id-less messages).
   String? messageId,
+
+  /// Badge count to show with the notification.
+  int? badge,
 }) => buildNativeContent(
   messageId: messageId ?? m.messageId,
   title: m.data[titleKey]?.toString(),
@@ -63,6 +71,7 @@ NotificationContent contentFromRemote(
   channelId: channelId,
   data: m.data.map((k, v) => MapEntry<String, String?>(k, v?.toString())),
   imageUrl: m.data[imageKey]?.toString(),
+  badge: badge,
 );
 
 final LinkedHashSet<String> _seen = LinkedHashSet<String>();
@@ -106,6 +115,19 @@ Future<void> handleBackgroundMessage(
     // delivered twice therefore shows twice: there is nothing to dedupe on.
     final effectiveId = hasId ? id : generateMessageId();
 
+    // Increment first so a shown notification carries the running count
+    // (Android `setNumber`, iOS `content.badge`). Every message increments,
+    // duplicates and notification-block messages included; a failure only
+    // means the notification is shown without a badge.
+    int? badge;
+    if (config?.autoIncrementOnPush ?? false) {
+      try {
+        badge = await api.incrementBadge();
+      } catch (e) {
+        debugPrint('push_notifications: incrementBadge failed: $e');
+      }
+    }
+
     // A notification block is displayed by the OS; never display twice.
     if (m.notification == null && !duplicate) {
       final content = contentFromRemote(
@@ -117,6 +139,7 @@ Future<void> handleBackgroundMessage(
             ? m.data[channelKey].toString()
             : defaultChannel,
         messageId: effectiveId,
+        badge: badge,
       );
       final empty =
           (content.title ?? '').isEmpty && (content.body ?? '').isEmpty;
@@ -138,14 +161,6 @@ Future<void> handleBackgroundMessage(
       }
     }
     if (claimed) _inFlight.remove(id);
-
-    if (config?.autoIncrementOnPush ?? false) {
-      try {
-        await api.incrementBadge();
-      } catch (e) {
-        debugPrint('push_notifications: incrementBadge failed: $e');
-      }
-    }
 
     final handle = config?.hookHandle;
     if (handle != null) {

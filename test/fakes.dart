@@ -178,12 +178,22 @@ class FakeHostApi extends PushHostApi {
   Future<void> showNotification(NotificationContent content) async {
     final gate = showGate;
     if (gate != null) await gate.future;
+    hostCalls.add('show');
     if (failShow) throw StateError('show failed');
     shownNotifications.add(content);
   }
 
+  bool failIncrement = false;
+
+  /// Order of showNotification / incrementBadge calls.
+  final hostCalls = <String>[];
+
   @override
-  Future<int> incrementBadge() async => ++badgeIncrements;
+  Future<int> incrementBadge() async {
+    hostCalls.add('increment');
+    if (failIncrement) throw StateError('increment failed');
+    return ++badgeIncrements;
+  }
 
   final badgeSets = <int>[];
   int badgeClears = 0;

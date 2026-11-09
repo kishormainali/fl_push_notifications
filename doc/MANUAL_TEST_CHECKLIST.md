@@ -79,6 +79,11 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
       foreground pushes do not.
 - [ ] `autoClearOnForeground`: badge clears at launch and on every resume.
 - [ ] Both options off (default): neither happens.
+- [ ] Android, `autoIncrementOnPush` on: send 3 data-only pushes in the
+      background; long-press the app icon (or check a numeric launcher) and the
+      latest notification shows the number 3.
+- [ ] iOS: send a notification message with `aps.badge = 7` while the app is in
+      the background, open the app (auto-clear off) and `getBadgeCount` returns 7.
 
 ## 5. Installation ID (FID)
 
@@ -127,7 +132,12 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
       before the first frame): the first is `terminated` and arrives first,
       the second keeps the state it was received in (usually `background`)
       and arrives after it.
-- [ ] **[DEFERRED RISK]** Android big-picture rendering (collapsed and expanded).
+- [ ] **[DEFERRED RISK]** Android big-picture rendering (collapsed and expanded):
+      collapsed shows a sharp thumbnail large icon; expanded shows the picture
+      once (no repeated large icon).
+- [ ] **[DEFERRED RISK]** iOS image cache pruning: after more than 50 distinct
+      image pushes, `<tmp>/push_notifications_images` holds at most 50 files;
+      an image URL that returns an HTML page shows text-only and leaves no file.
 - [ ] **[DEFERRED RISK]** Channel group (`groupId`) appears in system settings.
 - [ ] **[DEFERRED RISK]** Repeated id replaces the existing notification on both
       platforms.

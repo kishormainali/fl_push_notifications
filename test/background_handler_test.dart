@@ -156,6 +156,71 @@ void main() {
     expect(host.badgeIncrements, 1);
   });
 
+  group('badge on the shown notification (autoIncrementOnPush)', () {
+    test('data-only message carries the incremented count, incremented '
+        'before the show', () async {
+      host.storedConfig = cfg(inc: true);
+      host.badgeIncrements = 4;
+      await run(const RemoteMessage(messageId: 'nb1', data: {'title': 'a'}));
+      expect(host.hostCalls, ['increment', 'show']);
+      expect(host.shownNotifications.single.badge, 5);
+    });
+
+    test('autoIncrementOnPush off: no badge on the content', () async {
+      host.storedConfig = cfg(inc: false);
+      await run(const RemoteMessage(messageId: 'nb2', data: {'title': 'a'}));
+      expect(host.hostCalls, ['show']);
+      expect(host.shownNotifications.single.badge, isNull);
+    });
+
+    test('increment failure still shows, without a badge', () async {
+      host.storedConfig = cfg(inc: true);
+      host.failIncrement = true;
+      await run(const RemoteMessage(messageId: 'nb3', data: {'title': 'a'}));
+      expect(host.shownNotifications, hasLength(1));
+      expect(host.shownNotifications.single.badge, isNull);
+    });
+
+    test('notification-block message increments but is not shown', () async {
+      host.storedConfig = cfg(inc: true);
+      await run(
+        const RemoteMessage(
+          messageId: 'nb4',
+          notification: RemoteNotification(title: 'T', body: 'B'),
+        ),
+      );
+      expect(host.badgeIncrements, 1);
+      expect(host.shownNotifications, isEmpty);
+    });
+
+    test(
+      'duplicate increments again (as before) but is not shown again',
+      () async {
+        host.storedConfig = cfg(inc: true);
+        const m = RemoteMessage(messageId: 'nb5', data: {'title': 'a'});
+        await run(m);
+        await run(m);
+        expect(host.badgeIncrements, 2);
+        expect(host.shownNotifications, hasLength(1));
+        expect(host.shownNotifications.single.badge, 1);
+        expect(host.hostCalls, ['increment', 'show', 'increment']);
+      },
+    );
+  });
+
+  test('buildNativeContent passes an optional badge through', () {
+    NotificationContent build({int? badge}) => buildNativeContent(
+      messageId: 'x',
+      title: 't',
+      body: null,
+      channelId: 'c',
+      data: const {},
+      badge: badge,
+    );
+    expect(build().badge, isNull);
+    expect(build(badge: 3).badge, 3);
+  });
+
   test('user hook is called after display; hook exception does not '
       'escape', () async {
     host.storedConfig = cfg(hook: 42);
@@ -197,10 +262,7 @@ void main() {
     await run(m);
     await run(m);
     expect(host.shownNotifications, hasLength(2));
-    expect(
-      host.shownNotifications[0].id,
-      isNot(host.shownNotifications[1].id),
-    );
+    expect(host.shownNotifications[0].id, isNot(host.shownNotifications[1].id));
   });
 
   test('a failed show does not suppress a redelivery of the same '
@@ -262,28 +324,27 @@ void main() {
     expect(host.shownNotifications, hasLength(2));
   });
 
-  test('overlapping same id: failed first show still allows redelivery',
-      () async {
-    host.showGate = Completer<void>();
-    host.failShow = true;
-    const m = RemoteMessage(messageId: 'race-2', data: {'title': 'a'});
-    final f1 = run(m);
-    await pumpEventQueue();
-    host.showGate!.complete();
-    await f1;
-    host.failShow = false;
-    await run(m);
-    expect(host.shownNotifications, hasLength(1));
-  });
+  test(
+    'overlapping same id: failed first show still allows redelivery',
+    () async {
+      host.showGate = Completer<void>();
+      host.failShow = true;
+      const m = RemoteMessage(messageId: 'race-2', data: {'title': 'a'});
+      final f1 = run(m);
+      await pumpEventQueue();
+      host.showGate!.complete();
+      await f1;
+      host.failShow = false;
+      await run(m);
+      expect(host.shownNotifications, hasLength(1));
+    },
+  );
 
   test('empty-string messageIds are treated as absent: both show with '
       'different ids', () async {
     await run(const RemoteMessage(messageId: '', data: {'title': 'a'}));
     await run(const RemoteMessage(messageId: '', data: {'title': 'b'}));
     expect(host.shownNotifications, hasLength(2));
-    expect(
-      host.shownNotifications[0].id,
-      isNot(host.shownNotifications[1].id),
-    );
+    expect(host.shownNotifications[0].id, isNot(host.shownNotifications[1].id));
   });
 }
