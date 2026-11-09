@@ -544,6 +544,14 @@ cd example/android && ./gradlew :push_notifications:testDebugUnitTest
 cd ios/push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
 ```
 
+## Releasing
+
+1. Bump `version` in `pubspec.yaml` and add a matching `## X.Y.Z` section to `CHANGELOG.md`.
+2. Commit, then tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. The `Publish to pub.dev` workflow checks the tag against the pubspec version, runs the tests, publishes via OIDC and creates the GitHub release (pre-release when the version contains `-`).
+
+One-time setup on pub.dev (package admin > Automated publishing > GitHub Actions): repository `kishormainali/push_notifications`, tag pattern `v{{version}}`, environment `pub.dev`.
+
 ## Contributing and issues
 
 Bug reports and pull requests are welcome at
