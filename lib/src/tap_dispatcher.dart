@@ -18,6 +18,8 @@ class TapDispatcher {
   final StreamController<PushMessage> _controller =
       StreamController<PushMessage>.broadcast();
   bool _ready = false;
+  bool _flushing = false;
+  Future<void>? _flushDone;
 
   set decisionMaker(DecisionMaker? value) => _decisionMaker = value;
 
@@ -42,6 +44,13 @@ class TapDispatcher {
 
   Future<void> markReady() async {
     _ready = true;
+    // If a flush is already running, wait for it: its loop re-checks the queue
+    // so it also delivers every tap queued before this call.
+    final running = _flushDone;
+    if (running != null) {
+      await running;
+      return;
+    }
     await _flush();
   }
 
@@ -55,14 +64,25 @@ class TapDispatcher {
       }
       return;
     }
-    while (_queue.isNotEmpty && _decisionMaker != null) {
-      final m = _queue.removeAt(0);
-      _controller.add(m);
-      try {
-        await _decisionMaker!(m);
-      } catch (e, st) {
-        debugPrint('push_notifications: decisionMaker threw: $e\n$st');
+    // Single-flight: a running loop picks up newly queued taps itself.
+    if (_flushing) return;
+    _flushing = true;
+    final done = Completer<void>();
+    _flushDone = done.future;
+    try {
+      while (_queue.isNotEmpty && _decisionMaker != null) {
+        final m = _queue.removeAt(0);
+        _controller.add(m);
+        try {
+          await _decisionMaker!(m);
+        } catch (e, st) {
+          debugPrint('push_notifications: decisionMaker threw: $e\n$st');
+        }
       }
+    } finally {
+      _flushing = false;
+      _flushDone = null;
+      done.complete();
     }
   }
 }

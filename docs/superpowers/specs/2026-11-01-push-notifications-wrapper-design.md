@@ -133,7 +133,7 @@ Rules that make this correct:
    - Taps from Dart plugins (flutter_local_notifications responses, `onMessageOpenedApp`) are `foreground` if the last lifecycle state other than `inactive` (seeded at `init`, then every change) was `resumed`, otherwise `background`. `inactive` is skipped because it is transitional on both sides of a tap: a resumed app goes inactive while the shade is open / the tap is delivered, and a backgrounded app passes through inactive on its way back.
    - Cold-start taps that are not the launch head (a second tap queued natively before Dart was ready, or a live delivery that failed and was re-queued) are delivered live with the flag captured when they were received, so they are `foreground`/`background`, not `terminated`. They are delivered after the launch taps: Android posts them to the main looper so they are sent after the `consumeLaunchPayload` reply, and Dart holds any native tap that arrives before `init` has delivered the launch taps and releases it after them.
    - `appState` is informational: it does not affect routing, de-duplication or display.
-8. **Prompt decision maker.** Taps are delivered one at a time (each awaits the decision maker), so the decision maker must return promptly; it should start navigation without awaiting the pushed route.
+8. **Prompt decision maker.** Taps are delivered one at a time (each awaits the decision maker), so the decision maker must return promptly; it should start navigation without awaiting the pushed route. Delivery is single-flight (the decision maker never runs for two taps concurrently); a decision maker that never completes stalls later taps, which stay queued and are never dropped.
 
 ## Platform setup the package cannot do (README)
 

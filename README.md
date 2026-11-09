@@ -100,7 +100,9 @@ source and in any app state, goes through it. `PushMessage` has `id`, `title`,
 - Taps are delivered one at a time: the next tap waits until the decision
   maker's returned future completes. Return promptly; in particular do not
   `await` a `Navigator.push*` call (it completes only when the route is
-  popped), or later taps stall.
+  popped), or later taps stall. Delivery is single-flight, so the decision
+  maker never runs for two taps at once; one that never completes stalls
+  later taps (they stay queued, never dropped).
 - An exception thrown by the decision maker is caught and logged; it does not
   block later taps.
 - A repeated message id is delivered once (the dropped duplicate is logged).
@@ -397,7 +399,9 @@ maps to this plugin (this plugin, not from the Firebase page):
   token instead.
 - `onTokenChanged` is lazy: the plugin subscribes to the deprecated
   `onTokenRefresh` only while `onTokenChanged` has at least one listener, and
-  cancels it when the last listener leaves. `init` never subscribes to it, so
+  cancels it when the last listener leaves. If Firebase is not initialized
+  when the first listener attaches, the attach is retried the next time
+  listeners go from zero to one (a second concurrent listener does not retry). `init` never subscribes to it, so
   apps that use only the FID API never touch the deprecated stream.
 - New apps: enable the FID flags above and use the FID API (`onRegistered`,
   `installationId`).
