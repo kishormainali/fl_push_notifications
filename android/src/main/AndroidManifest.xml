@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-  package="com.kishormainali.push_notifications">
+  package="com.kishormainali.fl_push_notifications">
 
   <!-- Android 13+ runtime permission for posting notifications. -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

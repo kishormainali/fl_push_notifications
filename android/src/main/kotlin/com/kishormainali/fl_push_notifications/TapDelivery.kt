@@ -1,4 +1,4 @@
-package com.kishormainali.push_notifications
+package com.kishormainali.fl_push_notifications
 
 import android.util.Log
 import kotlinx.coroutines.CancellationException

@@ -1,1 +1,1 @@
-rootProject.name = "push_notifications"
+rootProject.name = "fl_push_notifications"

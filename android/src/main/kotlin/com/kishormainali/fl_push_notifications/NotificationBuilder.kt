@@ -1,4 +1,4 @@
-package com.kishormainali.push_notifications
+package com.kishormainali.fl_push_notifications
 
 import android.app.Notification
 import android.app.PendingIntent
@@ -129,7 +129,7 @@ object LargeIconScaler {
 }
 
 object SmallIconResolver {
-    const val META_PLUGIN = "com.kishormainali.push_notifications.default_icon"
+    const val META_PLUGIN = "com.kishormainali.fl_push_notifications.default_icon"
     const val META_FCM = "com.google.firebase.messaging.default_notification_icon"
 
     /** First non-zero of plugin meta-data, FCM meta-data, launcher icon. */

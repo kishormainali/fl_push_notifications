@@ -1,4 +1,4 @@
-group = "com.kishormainali.push_notifications"
+group = "com.kishormainali.fl_push_notifications"
 version = "1.0-SNAPSHOT"
 
 buildscript {
@@ -26,7 +26,7 @@ plugins {
 }
 
 android {
-    namespace = "com.kishormainali.push_notifications"
+    namespace = "com.kishormainali.fl_push_notifications"
 
     compileSdk = 37
 

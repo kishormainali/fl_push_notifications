@@ -1,4 +1,4 @@
-package com.kishormainali.push_notifications_example
+package com.kishormainali.fl_push_notifications_example
 
 import io.flutter.embedding.android.FlutterActivity
 

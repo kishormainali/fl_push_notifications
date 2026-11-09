@@ -1,4 +1,4 @@
-package com.kishormainali.push_notifications
+package com.kishormainali.fl_push_notifications
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.kishormainali.push_notifications_example"
+    namespace = "com.kishormainali.fl_push_notifications_example"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.kishormainali.push_notifications_example"
+        applicationId = "com.kishormainali.fl_push_notifications_example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
