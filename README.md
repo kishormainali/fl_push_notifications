@@ -6,6 +6,13 @@ Swift Package Manager only). It wraps `firebase_messaging` and
 callback that decides which screen a tap opens, and gets consistent behavior in
 the foreground, background and terminated states.
 
+## Supported platforms
+
+| Platform | Minimum version |
+| --- | --- |
+| Android | minSdk 24 (Android 7.0) with Google Play services |
+| iOS | 15.0 (Swift Package Manager only) |
+
 ## Resolved dependency versions
 
 - firebase_core ^5.1.0
@@ -15,10 +22,16 @@ the foreground, background and terminated states.
 
 ## Install
 
+```sh
+flutter pub add push_notifications
+flutter pub add firebase_core   # for Firebase.initializeApp() in your main()
+```
+
+Or in `pubspec.yaml`:
+
 ```yaml
 dependencies:
   push_notifications: ^0.1.0
-  # For Firebase.initializeApp() in your main().
   firebase_core: ^5.1.0
 ```
 
@@ -529,6 +542,11 @@ flutter test
 cd example/android && ./gradlew :push_notifications:testDebugUnitTest
 cd ios/push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
 ```
+
+## Contributing and issues
+
+Bug reports and pull requests are welcome at
+[https://github.com/kishormainali/push_notifications/issues](https://github.com/kishormainali/push_notifications/issues).
 
 ## License
 
