@@ -16,7 +16,20 @@ import 'ports_impl.dart';
 import 'push_message.dart';
 import 'tap_dispatcher.dart';
 
-enum PushPermissionStatus { granted, provisional, denied, notDetermined }
+/// Result of [PushNotifications.requestPermission].
+enum PushPermissionStatus {
+  /// The user allowed notifications.
+  granted,
+
+  /// Notifications are allowed quietly (iOS provisional authorization).
+  provisional,
+
+  /// The user denied notifications.
+  denied,
+
+  /// The user has not been asked yet.
+  notDetermined,
+}
 
 /// Optional app hook run for background messages. Must be a top-level function.
 typedef BackgroundMessageHook = Future<void> Function(RemoteMessage);
@@ -32,6 +45,7 @@ class PushNotifications {
         registerFlutterApi: PushFlutterApi.setUp,
       );
 
+  /// Creates an instance with injected ports, for tests.
   @visibleForTesting
   PushNotifications.withPorts(
     this._messaging,
@@ -47,11 +61,13 @@ class PushNotifications {
            currentLifecycleState ??
            (() => WidgetsBinding.instance.lifecycleState);
 
+  /// The shared plugin instance.
   static final PushNotifications instance = PushNotifications._();
 
   final MessagingPort _messaging;
   final LocalPort _local;
   final PushHostApi _host;
+  /// Whether the iOS code path is used; overridable for tests.
   @visibleForTesting
   final bool isIOS;
   final void Function(PushFlutterApi?) _registerFlutterApi;
@@ -84,6 +100,20 @@ class PushNotifications {
   /// during that window.
   List<(String, bool)>? _heldNativeTaps;
 
+  /// Initializes the plugin; call once after `Firebase.initializeApp()`.
+  ///
+  /// [decisionMaker] is called when the user taps a notification. [channels]
+  /// are registered on Android, and [defaultChannelId] is used when a message
+  /// names no known channel (it is read from the data key [channelKey]).
+  /// [showForegroundNotifications] controls whether messages received in the
+  /// foreground are displayed. [onBackgroundMessage] is an optional top-level
+  /// hook run for background messages. [badge] configures app icon badges.
+  /// [imageKey], [titleKey] and [bodyKey] name the data keys used when the
+  /// notification payload lacks an image, title or body. [imageHttpsOnly]
+  /// restricts image downloads to https. When [autoRegister] is true the app
+  /// is registered with FCM, delivering its installation id on [onRegistered].
+  ///
+  /// Repeat calls return the first call's future; a failed call may be retried.
   Future<void> init({
     required DecisionMaker decisionMaker,
     List<PushChannel> channels = const [],
@@ -344,10 +374,14 @@ class PushNotifications {
   /// or `null` before the first event and after that FID is unregistered.
   String? get installationId => _installationId;
 
+  /// Signals that the app can navigate; queued taps are then delivered to the
+  /// `decisionMaker` in order.
   void markReady() {
     unawaited(_dispatcher.markReady());
   }
 
+  /// Asks the user for notification permission (on Android also the
+  /// `POST_NOTIFICATIONS` runtime permission) and returns the outcome.
   Future<PushPermissionStatus> requestPermission() async {
     final s = await _messaging.requestPermission();
     var status = switch (s.authorizationStatus) {
@@ -363,7 +397,10 @@ class PushNotifications {
     return status;
   }
 
+  /// The FCM registration token, or `null` if unavailable.
   Future<String?> get token => _messaging.getToken();
+
+  /// Emits the new FCM token whenever it is refreshed.
   Stream<String> get onTokenChanged => _tokens.stream;
 
   /// The native platform token: the FCM token on Android, the APNs device
@@ -410,11 +447,16 @@ class PushNotifications {
     }
   }
 
+  /// Messages received while the app is in the foreground.
   Stream<PushMessage> get onForegroundMessage => _foreground.stream;
+  /// Emits every notification tap, for observation such as analytics. Taps are
+  /// handled by the `decisionMaker` passed to [init].
   Stream<PushMessage> get onTap => _dispatcher.onTap;
 
+  /// Subscribes this device to the FCM [topic].
   Future<void> subscribeToTopic(String topic) =>
       _messaging.subscribeToTopic(topic);
+  /// Unsubscribes this device from the FCM [topic].
   Future<void> unsubscribeFromTopic(String topic) =>
       _messaging.unsubscribeFromTopic(topic);
 
@@ -458,6 +500,8 @@ class PushNotifications {
     _channelIds.add(c.id);
   }
 
+  /// Deletes the Android channel [id]. Throws [ArgumentError] for the default
+  /// channel.
   Future<void> deleteChannel(String id) async {
     if (id == _defaultChannelId) {
       throw ArgumentError.value(

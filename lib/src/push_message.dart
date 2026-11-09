@@ -4,9 +4,26 @@ import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-enum MessageSource { remote, local }
+/// Where a [PushMessage] originated.
+enum MessageSource {
+  /// Delivered by Firebase Cloud Messaging.
+  remote,
 
-enum PushAppState { foreground, background, terminated }
+  /// Posted locally by this plugin.
+  local,
+}
+
+/// The app's lifecycle state when a [PushMessage] was received or tapped.
+enum PushAppState {
+  /// The app was visible and in use.
+  foreground,
+
+  /// The app was running but not visible.
+  background,
+
+  /// The app process was not running.
+  terminated,
+}
 
 /// Called when the user taps a notification.
 typedef DecisionMaker = FutureOr<void> Function(PushMessage message);
@@ -46,7 +63,9 @@ int stableLocalId(String id) {
   return h & 0x7fffffff;
 }
 
+/// A notification message, normalized across remote (FCM) and local sources.
 class PushMessage {
+  /// Creates a message. Most apps receive instances rather than build them.
   const PushMessage({
     required this.id,
     this.title,
@@ -59,14 +78,32 @@ class PushMessage {
     this.raw,
   });
 
+  /// Message id: the FCM message id, or a generated id when absent.
   final String id;
+
+  /// Notification title, if any.
   final String? title;
+
+  /// Notification body, if any.
   final String? body;
+
+  /// Custom data payload, with all values converted to strings.
   final Map<String, String> data;
+
+  /// URL of the notification image, if any.
   final String? imageUrl;
+
+  /// Id of the channel the notification is shown on.
   final String channelId;
+
+  /// Whether the message came from FCM or was posted locally.
   final MessageSource source;
+
+  /// App state when the message was received or tapped.
   final PushAppState appState;
+
+  /// The original source object (a [RemoteMessage] for remote messages, the
+  /// raw payload for local ones), or `null`.
   final Object? raw;
 
   /// [knownChannels] null means channel ids are not validated.
@@ -146,6 +183,8 @@ class PushMessage {
     );
   }
 
+  /// Serializes this message to the JSON payload attached to a local
+  /// notification.
   String toLocalPayload() => jsonEncode({
     'id': id,
     'title': title,
