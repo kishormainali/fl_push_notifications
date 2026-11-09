@@ -32,7 +32,7 @@ let coreTargets: [Target] = [
 
 let pluginTargets: [Target] = [
     .target(
-        name: "push_notifications",
+        name: "fl_push_notifications",
         dependencies: [
             "PushNotificationsCore",
             .product(name: "FlutterFramework", package: "FlutterFramework"),
@@ -51,7 +51,7 @@ let extensionProduct: Product = .library(
 )
 
 let package = Package(
-    name: "push_notifications",
+    name: "fl_push_notifications",
     platforms: [
         .iOS("15.0"),
         // Only so the Flutter-free targets can be tested with `swift test`.
@@ -60,7 +60,7 @@ let package = Package(
     products: coreOnly
         ? [extensionProduct]
         : [
-            .library(name: "push-notifications", targets: ["push_notifications"]),
+            .library(name: "fl-push-notifications", targets: ["fl_push_notifications"]),
             extensionProduct,
         ],
     dependencies: coreOnly

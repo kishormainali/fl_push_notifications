@@ -493,7 +493,7 @@ class PushHostApiSetup {
   /// Sets up an instance of `PushHostApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: PushHostApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
-    let isBadgeSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.isBadgeSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let isBadgeSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.isBadgeSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       isBadgeSupportedChannel.setMessageHandler { _, reply in
         do {
@@ -506,7 +506,7 @@ class PushHostApiSetup {
     } else {
       isBadgeSupportedChannel.setMessageHandler(nil)
     }
-    let setBadgeCountChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.setBadgeCount\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let setBadgeCountChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.setBadgeCount\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       setBadgeCountChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -521,7 +521,7 @@ class PushHostApiSetup {
     } else {
       setBadgeCountChannel.setMessageHandler(nil)
     }
-    let getBadgeCountChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.getBadgeCount\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let getBadgeCountChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.getBadgeCount\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getBadgeCountChannel.setMessageHandler { _, reply in
         do {
@@ -534,7 +534,7 @@ class PushHostApiSetup {
     } else {
       getBadgeCountChannel.setMessageHandler(nil)
     }
-    let clearBadgeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.clearBadge\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let clearBadgeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.clearBadge\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       clearBadgeChannel.setMessageHandler { _, reply in
         do {
@@ -547,7 +547,7 @@ class PushHostApiSetup {
     } else {
       clearBadgeChannel.setMessageHandler(nil)
     }
-    let incrementBadgeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.incrementBadge\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let incrementBadgeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.incrementBadge\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       incrementBadgeChannel.setMessageHandler { _, reply in
         do {
@@ -560,7 +560,7 @@ class PushHostApiSetup {
     } else {
       incrementBadgeChannel.setMessageHandler(nil)
     }
-    let createChannelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.createChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let createChannelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.createChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       createChannelChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -575,7 +575,7 @@ class PushHostApiSetup {
     } else {
       createChannelChannel.setMessageHandler(nil)
     }
-    let deleteChannelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.deleteChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let deleteChannelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.deleteChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       deleteChannelChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -590,7 +590,7 @@ class PushHostApiSetup {
     } else {
       deleteChannelChannel.setMessageHandler(nil)
     }
-    let getLastLaunchIdChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.getLastLaunchId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let getLastLaunchIdChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.getLastLaunchId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getLastLaunchIdChannel.setMessageHandler { _, reply in
         do {
@@ -603,7 +603,7 @@ class PushHostApiSetup {
     } else {
       getLastLaunchIdChannel.setMessageHandler(nil)
     }
-    let setLastLaunchIdChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.setLastLaunchId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let setLastLaunchIdChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.setLastLaunchId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       setLastLaunchIdChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -618,7 +618,7 @@ class PushHostApiSetup {
     } else {
       setLastLaunchIdChannel.setMessageHandler(nil)
     }
-    let saveBackgroundConfigChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.saveBackgroundConfig\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let saveBackgroundConfigChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.saveBackgroundConfig\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       saveBackgroundConfigChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -633,7 +633,7 @@ class PushHostApiSetup {
     } else {
       saveBackgroundConfigChannel.setMessageHandler(nil)
     }
-    let loadBackgroundConfigChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.loadBackgroundConfig\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let loadBackgroundConfigChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.loadBackgroundConfig\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       loadBackgroundConfigChannel.setMessageHandler { _, reply in
         do {
@@ -646,7 +646,7 @@ class PushHostApiSetup {
     } else {
       loadBackgroundConfigChannel.setMessageHandler(nil)
     }
-    let consumeLaunchPayloadChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.consumeLaunchPayload\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let consumeLaunchPayloadChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.consumeLaunchPayload\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       consumeLaunchPayloadChannel.setMessageHandler { _, reply in
         do {
@@ -659,7 +659,7 @@ class PushHostApiSetup {
     } else {
       consumeLaunchPayloadChannel.setMessageHandler(nil)
     }
-    let showNotificationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.showNotification\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let showNotificationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.showNotification\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       showNotificationChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -676,7 +676,7 @@ class PushHostApiSetup {
     } else {
       showNotificationChannel.setMessageHandler(nil)
     }
-    let downloadImageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.push_notifications.PushHostApi.downloadImage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let downloadImageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.downloadImage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       downloadImageChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -721,7 +721,7 @@ class PushFlutterApi: PushFlutterApiProtocol {
   /// `PushMessage.appState`; Dart's lifecycle may have changed since).
   @MainActor func onNativeTap(payload payloadArg: String, appWasActive appWasActiveArg: Bool) async throws {
     return try await withCheckedThrowingContinuation { continuation in
-      let channelName: String = "dev.flutter.pigeon.push_notifications.PushFlutterApi.onNativeTap\(messageChannelSuffix)"
+      let channelName: String = "dev.flutter.pigeon.fl_push_notifications.PushFlutterApi.onNativeTap\(messageChannelSuffix)"
       let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
       channel.sendMessage([payloadArg, appWasActiveArg] as [Any?]) { response in
         guard let listResponse = response as? [Any?] else {

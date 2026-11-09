@@ -9,7 +9,7 @@ import UserNotifications
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     // Lets FlutterAppDelegate forward notification taps and foreground
-    // presentation to the plugins (push_notifications, flutter_local_notifications).
+    // presentation to the plugins (fl_push_notifications, flutter_local_notifications).
     UNUserNotificationCenter.current().delegate = self
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
