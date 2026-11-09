@@ -23,6 +23,10 @@
 
 ## 0.1.0
 
+* First release, published as `fl_push_notifications` (pub.dev rejected the
+  originally planned name `push_notifications` as too similar to the existing
+  `push_notification`). Import
+  `package:fl_push_notifications/fl_push_notifications.dart`.
 * Depends on `flutter_local_notifications` ^23.0.0 (requires Flutter 3.44+, app
   `compileSdk` 37 and AGP 9.1.1+ on Android).
 * One-call `PushNotifications.instance.init` for FCM and local notifications

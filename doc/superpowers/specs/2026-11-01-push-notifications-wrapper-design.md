@@ -20,7 +20,7 @@ foreground, background and terminated states on Android and iOS.
 - A user-supplied **decision maker** that chooses the screen from the message (usually `data['type']`).
 - Correct cold-start handling: taps that arrive before the router exists are queued, then delivered.
 - Follow current FlutterFire / flutter_local_notifications guidance (named `settings:` in `initialize`, `@pragma('vm:entry-point')` top-level handlers, `getInitialMessage` / `onMessageOpenedApp`, `getNotificationAppLaunchDetails`).
-- Standalone, publishable Flutter **plugin** (`push_notifications`), usable by any app. It contains native Android (Kotlin) and iOS (Swift) code because `flutter_local_notifications` does not manage the app icon badge.
+- Standalone, publishable Flutter **plugin** (`fl_push_notifications`), usable by any app. It contains native Android (Kotlin) and iOS (Swift) code because `flutter_local_notifications` does not manage the app icon badge.
 - Multiple notification channels (Android): the app registers a list of channels at `init`; each incoming message is routed to a channel, falling back to a default. See "Channels".
 - App badge management: set, clear and (where the OS allows) read the launcher icon badge count, kept consistent with push arrival in all three app states.
 
@@ -172,7 +172,7 @@ Rules that make this correct:
 - Auto-increment/auto-clear are opt-in, off by default.
 - Channels are Android-only; unknown channel falls back to default; default channel is undeletable; default `channelKey` is `channel_id`.
 - Last launch-tap id is persisted natively (SharedPreferences / UserDefaults) through two Pigeon methods.
-- Package name `push_notifications` (confirmed by you). Checked pub.dev on 2026-11-01: `push_notifications` and `fl_notifications` are not taken; `push_notification` and `flutter_push_notifications` are.
+- Package name `fl_push_notifications`. Originally `push_notifications` (pub.dev on 2026-11-01 showed it untaken), but pub.dev rejected that name at publish time as too similar to the existing `push_notification`, so the package was renamed before its first release.
 - `markReady()` as the cold-start gate.
 - iOS foreground uses OS presentation options rather than a local notification for notification messages; foreground data-only messages (not presented by the OS) are shown natively by the plugin.
 - Data-only messages are displayed via a local notification using `title`/`body` keys in `data` (configurable).

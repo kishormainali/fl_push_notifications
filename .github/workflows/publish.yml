@@ -2,7 +2,7 @@ name: Publish to pub.dev
 
 # Tag format: v<version>, e.g. v0.1.1 (pre-releases: v0.2.0-beta.1)
 # One-time setup on pub.dev (package admin > Automated publishing > GitHub Actions):
-#   repository: kishormainali/push_notifications
+#   repository: kishormainali/fl_push_notifications
 #   tag pattern: v{{version}}
 #   environment: pub.dev
 # Then publish by bumping pubspec.yaml + CHANGELOG.md and pushing a matching tag.

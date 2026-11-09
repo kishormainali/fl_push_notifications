@@ -1,4 +1,4 @@
-# push_notifications
+# fl_push_notifications
 
 Unified push notifications for Flutter on Android (Kotlin) and iOS (Swift,
 Swift Package Manager only). It wraps `firebase_messaging` and
@@ -23,7 +23,7 @@ the foreground, background and terminated states.
 ## Install
 
 ```sh
-flutter pub add push_notifications
+flutter pub add fl_push_notifications
 flutter pub add firebase_core   # for Firebase.initializeApp() in your main()
 ```
 
@@ -31,11 +31,11 @@ Or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  push_notifications: ^0.1.0
+  fl_push_notifications: ^0.1.0
   firebase_core: ^5.1.0
 ```
 
-`push_notifications` re-exports `RemoteMessage` (from `firebase_messaging`) and
+`fl_push_notifications` re-exports `RemoteMessage` (from `firebase_messaging`) and
 `Importance` (from `flutter_local_notifications`), so you do not need either
 package as a direct dependency just for those types.
 
@@ -51,7 +51,7 @@ configuration.
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 // Also exports RemoteMessage and Importance.
-import 'package:push_notifications/push_notifications.dart';
+import 'package:fl_push_notifications/fl_push_notifications.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -331,7 +331,7 @@ desugaring, Swift Package Manager and the app delegate).
 5. (this plugin) The plugin supports Swift Package Manager only (no CocoaPods). Enable it with
    `flutter config --enable-swift-package-manager`.
 6. (this plugin) If you develop the plugin locally from source, the plugin folder must be
-   named `push_notifications`, because SwiftPM keys on the folder name.
+   named `fl_push_notifications`, because SwiftPM keys on the folder name.
 7. On Apple platforms make sure the APNs token is available before calling FCM
    plugin APIs (Firebase docs, iOS SDK 10.4.0+); see
    [Platform token](#platform-token-fcm-on-android-apns-on-ios).
@@ -340,7 +340,7 @@ desugaring, Swift Package Manager and the app delegate).
 
 1. In Xcode: File → New → Target → Notification Service Extension.
 2. Add the `PushNotificationsServiceExtension` Swift package product (from this
-   plugin's `ios/push_notifications` package) to the extension target.
+   plugin's `ios/fl_push_notifications` package) to the extension target.
 3. Replace the generated class with:
 
    ```swift
@@ -349,7 +349,7 @@ desugaring, Swift Package Manager and the app delegate).
    ```
 
    Fallback if you cannot link the product: copy
-   `ios/push_notifications/Sources/PushNotificationsServiceExtension/PushNotificationService.swift`
+   `ios/fl_push_notifications/Sources/PushNotificationsServiceExtension/PushNotificationService.swift`
    and the files in `Sources/PushNotificationsCore` into the extension target.
 4. Send `mutable-content: 1`. The image URL is read from `image` or
    `fcm_options.image` in the payload.
@@ -374,7 +374,7 @@ desugaring, Swift Package Manager and the app delegate).
       android:value="default" />
   ```
 - (this plugin) Small icon (optional): set either
-  `com.kishormainali.push_notifications.default_icon` or
+  `com.kishormainali.fl_push_notifications.default_icon` or
   `com.google.firebase.messaging.default_notification_icon` meta-data to a
   drawable.
 - (this plugin) `flutter_local_notifications` requires core library desugaring in
@@ -540,8 +540,8 @@ the Firebase Installation ID flags on both platforms. See
 
 ```sh
 flutter test
-cd example/android && ./gradlew :push_notifications:testDebugUnitTest
-cd ios/push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
+cd example/android && ./gradlew :fl_push_notifications:testDebugUnitTest
+cd ios/fl_push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
 ```
 
 ## Releasing
@@ -550,12 +550,12 @@ cd ios/push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
 2. Commit, then tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. The `Publish to pub.dev` workflow checks the tag against the pubspec version, runs the tests, publishes via OIDC and creates the GitHub release (pre-release when the version contains `-`).
 
-One-time setup on pub.dev (package admin > Automated publishing > GitHub Actions): repository `kishormainali/push_notifications`, tag pattern `v{{version}}`, environment `pub.dev`.
+One-time setup on pub.dev (package admin > Automated publishing > GitHub Actions): repository `kishormainali/fl_push_notifications`, tag pattern `v{{version}}`, environment `pub.dev`.
 
 ## Contributing and issues
 
 Bug reports and pull requests are welcome at
-[https://github.com/kishormainali/push_notifications/issues](https://github.com/kishormainali/push_notifications/issues).
+[https://github.com/kishormainali/fl_push_notifications/issues](https://github.com/kishormainali/fl_push_notifications/issues).
 
 ## License
 
