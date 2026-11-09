@@ -52,8 +52,12 @@ NotificationContent contentFromRemote(
   String titleKey = 'title',
   String bodyKey = 'body',
   required String channelId,
+
+  /// Id to use instead of [RemoteMessage.messageId] (the handler passes a
+  /// generated fallback for id-less messages).
+  String? messageId,
 }) => buildNativeContent(
-  messageId: m.messageId,
+  messageId: messageId ?? m.messageId,
   title: m.data[titleKey]?.toString(),
   body: m.data[bodyKey]?.toString(),
   channelId: channelId,
@@ -84,20 +88,17 @@ Future<void> handleBackgroundMessage(
   Future<void> Function(RemoteMessage)? Function(int handle)? resolveHook,
 }) async {
   try {
-    await (initFirebase ?? _defaultInitFirebase)();
     final api = host ?? PushHostApi();
     final config = await api.loadBackgroundConfig();
     final defaultChannel = config?.defaultChannelId ?? 'default';
     final channelKey = config?.channelKey ?? 'channel_id';
 
+    // Id-less messages get one unique fallback id, used for both the
+    // notification id and the tap payload id. The same id-less object
+    // delivered twice therefore shows twice: there is nothing to dedupe on.
     final id = m.messageId;
-    var duplicate = false;
-    if (id != null) {
-      duplicate = !_seen.add(id);
-      while (_seen.length > _seenCapacity) {
-        _seen.remove(_seen.first);
-      }
-    }
+    final effectiveId = (id == null || id.isEmpty) ? generateMessageId() : id;
+    final duplicate = id != null && _seen.contains(id);
 
     // A notification block is displayed by the OS; never display twice.
     if (m.notification == null && !duplicate) {
@@ -109,6 +110,7 @@ Future<void> handleBackgroundMessage(
         channelId: m.data[channelKey]?.toString().isNotEmpty == true
             ? m.data[channelKey].toString()
             : defaultChannel,
+        messageId: effectiveId,
       );
       final empty =
           (content.title ?? '').isEmpty && (content.body ?? '').isEmpty;
@@ -117,6 +119,13 @@ Future<void> handleBackgroundMessage(
       } else {
         try {
           await api.showNotification(content);
+          // Record only after a successful show so a redelivery can retry.
+          if (id != null) {
+            _seen.add(id);
+            while (_seen.length > _seenCapacity) {
+              _seen.remove(_seen.first);
+            }
+          }
         } catch (e) {
           debugPrint('push_notifications: showNotification failed: $e');
         }
@@ -134,6 +143,15 @@ Future<void> handleBackgroundMessage(
     final handle = config?.hookHandle;
     if (handle != null) {
       try {
+        // Firebase is only needed by the user hook, so init lazily here.
+        try {
+          await (initFirebase ?? _defaultInitFirebase)();
+        } catch (e) {
+          debugPrint(
+            'push_notifications: Firebase init failed, hook skipped: $e',
+          );
+          return;
+        }
         final hook = (resolveHook ?? _defaultResolveHook)(handle);
         await hook?.call(m);
       } catch (e) {

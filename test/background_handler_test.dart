@@ -25,10 +25,11 @@ void main() {
   Future<void> run(
     RemoteMessage m, {
     Future<void> Function(RemoteMessage)? hook,
+    Future<void> Function()? initFirebase,
   }) => handleBackgroundMessage(
     m,
     host: host,
-    initFirebase: () async => firebaseCalls++,
+    initFirebase: initFirebase ?? () async => firebaseCalls++,
     resolveHook: (_) => hook,
   );
 
@@ -45,7 +46,7 @@ void main() {
         data: {'title': 'Hi', 'body': 'There', 'image': 'https://x/y.png'},
       ),
     );
-    expect(firebaseCalls, 1);
+    expect(firebaseCalls, 0, reason: 'Firebase only needed for the hook');
     expect(host.shownNotifications, hasLength(1));
     final c = host.shownNotifications.single;
     expect(c.title, 'Hi');
@@ -173,5 +174,68 @@ void main() {
   test('handler never throws if host.showNotification throws', () async {
     host.failShow = true;
     await run(const RemoteMessage(messageId: 'f1', data: {'title': 'a'}));
+  });
+
+  test('messages without a messageId get distinct notification ids, used '
+      'for both id and extras', () async {
+    await run(const RemoteMessage(data: {'title': 'a'}));
+    await run(const RemoteMessage(data: {'title': 'b'}));
+    final a = host.shownNotifications[0];
+    final b = host.shownNotifications[1];
+    expect(a.id, isNot(b.id));
+    expect(a.id, isNot(stableLocalId('')));
+    expect(a.extras['messageId'], isNotEmpty);
+    expect(a.extras['messageId'], isNot(b.extras['messageId']));
+    expect(a.id, stableLocalId(a.extras['messageId']! as String));
+  });
+
+  test('the same id-less RemoteMessage object processed twice is shown '
+      'twice (no id to dedupe on)', () async {
+    const m = RemoteMessage(data: {'title': 'a'});
+    await run(m);
+    await run(m);
+    expect(host.shownNotifications, hasLength(2));
+    expect(
+      host.shownNotifications[0].id,
+      isNot(host.shownNotifications[1].id),
+    );
+  });
+
+  test('a failed show does not suppress a redelivery of the same '
+      'messageId', () async {
+    const m = RemoteMessage(messageId: 'retry-1', data: {'title': 'a'});
+    host.failShow = true;
+    await run(m);
+    expect(host.shownNotifications, isEmpty);
+    host.failShow = false;
+    await run(m);
+    expect(host.shownNotifications, hasLength(1));
+    await run(m);
+    expect(host.shownNotifications, hasLength(1));
+  });
+
+  test('Firebase init failure still shows and increments badge, and skips '
+      'the hook', () async {
+    host.storedConfig = cfg(inc: true, hook: 7);
+    var hookCalls = 0;
+    await run(
+      const RemoteMessage(messageId: 'fb1', data: {'title': 'a'}),
+      initFirebase: () async => throw StateError('no firebase'),
+      hook: (m) async => hookCalls++,
+    );
+    expect(host.shownNotifications, hasLength(1));
+    expect(host.badgeIncrements, 1);
+    expect(hookCalls, 0);
+  });
+
+  test('Firebase is initialized before the hook runs', () async {
+    host.storedConfig = cfg(hook: 7);
+    var hookCalls = 0;
+    await run(
+      const RemoteMessage(messageId: 'fb2', data: {'title': 'a'}),
+      hook: (m) async => hookCalls++,
+    );
+    expect(firebaseCalls, 1);
+    expect(hookCalls, 1);
   });
 }

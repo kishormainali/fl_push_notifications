@@ -198,7 +198,7 @@ if (t != null) await api.savePlatformToken(t);
 | Foreground | notification | `onForegroundMessage` emits first. Android: FCM shows nothing, so the package shows a local notification (if `showForegroundNotifications`; needs a `title` or `body`). iOS: the OS presents it (alert/badge/sound, via `setForegroundNotificationPresentationOptions`); the package does not also show one. | Android: local notification tap (big picture: the native tap hook). iOS: `onMessageOpenedApp` |
 | Foreground | data-only | `onForegroundMessage` emits first. If `showForegroundNotifications` and `data` has a `title` or `body` (`titleKey`/`bodyKey`), the package shows a notification: Android a local one, iOS a native one (the OS presents nothing for data-only, so nothing is duplicated). A repeated message id is shown once. | Local notification tap, or the native tap hook |
 | Background | notification | The OS displays it. | `onMessageOpenedApp` |
-| Background | data-only | The package's top-level handler runs in a background isolate: it initializes Firebase, shows a notification from `data` (`title`/`body` keys), then runs your optional `onBackgroundMessage`. | Native/local notification tap |
+| Background | data-only | The package's top-level handler runs in a background isolate: it shows a notification from `data` (`title`/`body` keys), then initializes Firebase and runs your optional `onBackgroundMessage` (if Firebase init fails the hook is skipped; display and badge still happen). | Native/local notification tap |
 | Terminated | notification | The OS displays it. | On next launch, `getInitialMessage()`; queued until `markReady()` |
 | Terminated | data-only | Same background-handler path. Android: high priority. iOS: needs `content-available` and delivery is throttled by the OS. | Launch payload; queued until `markReady()` |
 
@@ -401,7 +401,8 @@ maps to this plugin (this plugin, not from the Firebase page):
   `onTokenRefresh` only while `onTokenChanged` has at least one listener, and
   cancels it when the last listener leaves. If Firebase is not initialized
   when the first listener attaches, the attach is retried the next time
-  listeners go from zero to one (a second concurrent listener does not retry). `init` never subscribes to it, so
+  listeners go from zero to one (a second concurrent listener does not retry).
+  `init` never subscribes to it, so
   apps that use only the FID API never touch the deprecated stream.
 - New apps: enable the FID flags above and use the FID API (`onRegistered`,
   `installationId`).
@@ -450,6 +451,10 @@ ID or FCM registration token".
 - The hook must be a top-level function (annotate with
   `@pragma('vm:entry-point')`); otherwise it is logged and not run.
 - The background isolate cannot touch UI or app state.
+- Duplicate suppression is by `messageId`, process-local, and recorded only after
+  a successful show (a failed show can be retried by a redelivery). A message
+  without a `messageId` gets a unique generated id each time, so it is never
+  deduplicated.
 - On iOS a data-only push needs `content-available: 1` and the OS throttles
   delivery.
 

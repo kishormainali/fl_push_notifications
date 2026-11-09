@@ -14,7 +14,8 @@ typedef DecisionMaker = FutureOr<void> Function(PushMessage message);
 String? _nonEmpty(String? s) => (s == null || s.isEmpty) ? null : s;
 
 int _idCounter = 0;
-String _generateId() =>
+/// Unique-per-call fallback id (internal; not exported from the package).
+String generateMessageId() =>
     'gen-${DateTime.now().microsecondsSinceEpoch}-${_idCounter++}';
 
 /// Picks the channel for [m]: android channelId, then `data[channelKey]`,
@@ -91,7 +92,7 @@ class PushMessage {
             channelKey: channelKey,
           );
     return PushMessage(
-      id: m.messageId ?? _generateId(),
+      id: m.messageId ?? generateMessageId(),
       title: _nonEmpty(m.notification?.title) ?? _nonEmpty(data[titleKey]),
       body: _nonEmpty(m.notification?.body) ?? _nonEmpty(data[bodyKey]),
       data: data,
@@ -120,7 +121,7 @@ class PushMessage {
         final id = j['id']?.toString();
         final channel = j['channelId']?.toString();
         return PushMessage(
-          id: (id == null || id.isEmpty) ? _generateId() : id,
+          id: (id == null || id.isEmpty) ? generateMessageId() : id,
           title: j['title']?.toString(),
           body: j['body']?.toString(),
           data: data,
@@ -137,7 +138,7 @@ class PushMessage {
       debugPrint('push_notifications: corrupt local payload: $e');
     }
     return PushMessage(
-      id: _generateId(),
+      id: generateMessageId(),
       channelId: defaultChannelId,
       source: MessageSource.local,
       appState: state,
