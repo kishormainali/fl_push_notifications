@@ -21,6 +21,10 @@ data class NotificationPlan(
     val number: Int?,
     val style: NotificationStyleKind,
     val payload: String,
+    /** setLargeIcon gets a small thumbnail ([LargeIconScaler]), not the picture. */
+    val thumbnailLargeIcon: Boolean = false,
+    /** BigPictureStyle.bigLargeIcon(null): the expanded view shows the picture once. */
+    val clearBigLargeIcon: Boolean = false,
 )
 
 object NotificationPlanner {
@@ -31,18 +35,21 @@ object NotificationPlanner {
         defaultChannelId: String?,
     ): NotificationPlan {
         val channelId = resolveChannel(content.channelId, channelExists, defaultChannelId)
+        val style = when {
+            hasBitmap -> NotificationStyleKind.BIG_PICTURE
+            !content.body.isNullOrEmpty() -> NotificationStyleKind.BIG_TEXT
+            else -> NotificationStyleKind.PLAIN
+        }
         return NotificationPlan(
             id = content.id.toInt(),
             channelId = channelId,
             title = content.title,
             body = content.body,
             number = content.badge?.toInt(),
-            style = when {
-                hasBitmap -> NotificationStyleKind.BIG_PICTURE
-                !content.body.isNullOrEmpty() -> NotificationStyleKind.BIG_TEXT
-                else -> NotificationStyleKind.PLAIN
-            },
+            style = style,
             payload = payloadJson(content, channelId),
+            thumbnailLargeIcon = style == NotificationStyleKind.BIG_PICTURE,
+            clearBigLargeIcon = style == NotificationStyleKind.BIG_PICTURE,
         )
     }
 
@@ -88,6 +95,37 @@ object NotificationPlanner {
     }
 
     private const val TAG = "push_notifications"
+}
+
+/**
+ * Size math for the collapsed-view large icon. The picture itself is up to
+ * 2048 px; the large icon is shown at ~64 dp, so a thumbnail keeps the
+ * Binder transaction small.
+ */
+object LargeIconScaler {
+    const val MAX_EDGE = 256
+
+    fun needsScaling(width: Int, height: Int, maxEdge: Int = MAX_EDGE): Boolean =
+        maxOf(width, height) > maxEdge
+
+    /** Longer edge at most [maxEdge], aspect preserved, never upscaled. */
+    fun targetSize(width: Int, height: Int, maxEdge: Int = MAX_EDGE): Pair<Int, Int> {
+        if (!needsScaling(width, height, maxEdge)) return width to height
+        return if (width >= height) {
+            maxEdge to Math.round(height.toDouble() * maxEdge / width).toInt().coerceAtLeast(1)
+        } else {
+            Math.round(width.toDouble() * maxEdge / height).toInt().coerceAtLeast(1) to maxEdge
+        }
+    }
+
+    /** A thumbnail of [bitmap] (the same instance when already small), or null on failure. */
+    fun thumbnail(bitmap: Bitmap): Bitmap? = try {
+        val (w, h) = targetSize(bitmap.width, bitmap.height)
+        if (w == bitmap.width && h == bitmap.height) bitmap else Bitmap.createScaledBitmap(bitmap, w, h, true)
+    } catch (e: Throwable) {
+        Log.w("push_notifications", "large icon thumbnail failed: $e")
+        null
+    }
 }
 
 object SmallIconResolver {
@@ -147,9 +185,13 @@ object NotificationBuilder {
             .setAutoCancel(true)
         plan.number?.let { b.setNumber(it) }
         when (plan.style) {
-            NotificationStyleKind.BIG_PICTURE -> b.setLargeIcon(bitmap).setStyle(
-                Notification.BigPictureStyle().bigPicture(bitmap).setSummaryText(plan.body),
-            )
+            NotificationStyleKind.BIG_PICTURE -> {
+                val style = Notification.BigPictureStyle().bigPicture(bitmap).setSummaryText(plan.body)
+                if (plan.clearBigLargeIcon) style.bigLargeIcon(null as Bitmap?)
+                val icon = if (plan.thumbnailLargeIcon) bitmap?.let(LargeIconScaler::thumbnail) else bitmap
+                icon?.let { b.setLargeIcon(it) }
+                b.setStyle(style)
+            }
             NotificationStyleKind.BIG_TEXT -> b.setStyle(Notification.BigTextStyle().bigText(plan.body))
             NotificationStyleKind.PLAIN -> Unit
         }

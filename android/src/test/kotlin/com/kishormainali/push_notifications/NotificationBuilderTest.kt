@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -42,6 +43,16 @@ class NotificationPlannerTest {
         assertEquals(NotificationStyleKind.BIG_PICTURE, plan(content(), hasBitmap = true).style)
         assertEquals(NotificationStyleKind.BIG_TEXT, plan(content()).style)
         assertEquals(NotificationStyleKind.PLAIN, plan(content(body = null)).style)
+    }
+
+    @Test
+    fun `big picture plan uses a thumbnail large icon and clears bigLargeIcon`() {
+        val p = plan(content(), hasBitmap = true)
+        assertTrue(p.thumbnailLargeIcon)
+        assertTrue(p.clearBigLargeIcon)
+        val text = plan(content())
+        assertFalse(text.thumbnailLargeIcon)
+        assertFalse(text.clearBigLargeIcon)
     }
 
     @Test
@@ -86,6 +97,39 @@ class NotificationPlannerTest {
         assertEquals(2, SmallIconResolver.pick(0, 2, 3))
         assertEquals(3, SmallIconResolver.pick(0, 0, 3))
         assertEquals(android.R.drawable.sym_def_app_icon, SmallIconResolver.pick(0, 0, 0))
+    }
+}
+
+class LargeIconScalerTest {
+    @Test
+    fun `landscape image is scaled so the longer edge is the max, aspect preserved`() {
+        assertEquals(256 to 144, LargeIconScaler.targetSize(2048, 1152))
+        assertEquals(256 to 128, LargeIconScaler.targetSize(1000, 500))
+    }
+
+    @Test
+    fun `portrait image is scaled by its height`() {
+        assertEquals(144 to 256, LargeIconScaler.targetSize(1152, 2048))
+    }
+
+    @Test
+    fun `already small images are untouched and never upscaled`() {
+        assertEquals(256 to 256, LargeIconScaler.targetSize(256, 256))
+        assertEquals(100 to 40, LargeIconScaler.targetSize(100, 40))
+        assertEquals(1 to 1, LargeIconScaler.targetSize(1, 1))
+        assertFalse(LargeIconScaler.needsScaling(256, 100))
+        assertTrue(LargeIconScaler.needsScaling(257, 100))
+    }
+
+    @Test
+    fun `extreme aspect ratios keep at least one pixel`() {
+        assertEquals(256 to 1, LargeIconScaler.targetSize(2048, 2))
+        assertEquals(1 to 256, LargeIconScaler.targetSize(3, 2000))
+    }
+
+    @Test
+    fun `custom max edge is honored`() {
+        assertEquals(64 to 32, LargeIconScaler.targetSize(200, 100, maxEdge = 64))
     }
 }
 

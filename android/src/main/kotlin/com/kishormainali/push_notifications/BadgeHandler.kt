@@ -56,7 +56,15 @@ class BadgeHandler(
     private val launcher: LauncherLookup,
     private val sender: BadgeSender,
 ) {
-    private val vendor: BadgeVendor? by lazy { BadgeVendor.of(launcher.launcherPackage()) }
+    /**
+     * A failing launcher lookup (e.g. `resolveActivity` throwing on an odd
+     * ROM) counts as an unrecognized launcher, so no badge call ever throws.
+     */
+    private val vendor: BadgeVendor? by lazy {
+        runCatching { BadgeVendor.of(launcher.launcherPackage()) }
+            .onFailure { Log.w(TAG, "launcher lookup failed; badge unsupported", it) }
+            .getOrNull()
+    }
 
     fun isBadgeSupported(): Boolean = vendor != null
 

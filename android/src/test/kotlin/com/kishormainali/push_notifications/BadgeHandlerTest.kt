@@ -36,6 +36,20 @@ class BadgeHandlerTest {
     }
 
     @Test
+    fun `launcher lookup that throws is treated as an unrecognized launcher`() {
+        val store = InMemoryStore()
+        val throwing = BadgeSender { _, _ -> error("must not be called") }
+        val h = BadgeHandler(store, { throw SecurityException("resolveActivity failed") }, throwing)
+        assertFalse(h.isBadgeSupported())
+        h.setBadgeCount(4)
+        assertEquals(4L, h.storedCount())
+        assertEquals(5L, h.incrementBadge())
+        h.clearBadge()
+        assertEquals(0L, h.storedCount())
+        assertFalse(h.isBadgeSupported())
+    }
+
+    @Test
     fun `no launcher resolved reports unsupported`() {
         assertFalse(handler(InMemoryStore(), null).isBadgeSupported())
     }
