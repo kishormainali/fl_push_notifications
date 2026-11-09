@@ -31,8 +31,10 @@ struct SystemBadgeReader: BadgeReader {
 }
 
 /// `applicationIconBadgeNumber` is deprecated (iOS 17) without a getter
-/// replacement, but still works. Going through this protocol keeps the
-/// deprecated use in one place without a warning at the call sites.
+/// replacement, but still works. Swift has no pragma to silence one
+/// deprecation; calling a deprecated member through a protocol requirement
+/// does not warn, so this protocol confines the deprecated use to the
+/// extension below and keeps the call sites warning-free.
 private protocol IconBadgeNumberAccess: AnyObject {
   var iconBadgeNumber: Int { get set }
 }

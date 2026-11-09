@@ -28,13 +28,22 @@ final class BadgeHandlerTests: XCTestCase {
     super.tearDown()
   }
 
+  private var clock = Date(timeIntervalSince1970: 1_000_000)
+
   private func handler(reading value: Int?) -> BadgeHandler {
-    BadgeHandler(defaults: defaults, applier: applier, reader: FixedReader(value: value))
+    BadgeHandler(
+      defaults: defaults, applier: applier, reader: FixedReader(value: value),
+      now: { [unowned self] in self.clock })
   }
+
+  /// Moves past the window in which the plugin's own (async) set may not
+  /// have reached the icon yet.
+  private func settle() { clock = clock.addingTimeInterval(BadgeHandler.ownSetWindow + 1) }
 
   func testGetBadgeCountReturnsTheRealIconNumber() {
     let h = handler(reading: 7)
     h.setBadgeCount(2)
+    settle()
     // e.g. an APNs payload set the icon to 7 behind the counter's back.
     XCTAssertEqual(h.getBadgeCount(), 7)
     XCTAssertEqual(h.storedCount(), 2)
@@ -54,11 +63,46 @@ final class BadgeHandlerTests: XCTestCase {
     XCTAssertEqual(applier.applied, [0, 5])
   }
 
-  func testIncrementUsesTheStoredCounter() {
+  func testIncrementCountsFromTheRealIconNumber() {
+    // Icon shows 9 (APNs-applied), counter says 1: never lower the badge.
+    let h = handler(reading: 9)
+    h.setBadgeCount(1)
+    settle()
+    XCTAssertEqual(h.incrementBadge(), 10)
+    XCTAssertEqual(h.storedCount(), 10)
+    XCTAssertEqual(applier.applied, [1, 10])
+  }
+
+  func testIncrementWithoutAReadableIconUsesTheStoredCounter() {
+    let h = handler(reading: nil)
+    h.setBadgeCount(4)
+    settle()
+    XCTAssertEqual(h.incrementBadge(), 5)
+  }
+
+  func testGetRightAfterOwnSetReturnsTheSetValue() {
+    // The reader still shows the old icon number (the async set has not
+    // landed yet).
+    let h = handler(reading: 9)
+    h.setBadgeCount(3)
+    XCTAssertEqual(h.getBadgeCount(), 3)
+    clock = clock.addingTimeInterval(BadgeHandler.ownSetWindow / 2)
+    XCTAssertEqual(h.getBadgeCount(), 3)
+    settle()
+    XCTAssertEqual(h.getBadgeCount(), 9)
+  }
+
+  func testIncrementRightAfterSetBuildsOnTheSetValue() {
     let h = handler(reading: 9)
     h.setBadgeCount(1)
     XCTAssertEqual(h.incrementBadge(), 2)
-    XCTAssertEqual(applier.applied, [1, 2])
+    XCTAssertEqual(h.incrementBadge(), 3)
+  }
+
+  func testOwnSetWindowIsSharedThroughTheStore() {
+    // Another engine's handler on the same defaults sees the recent set.
+    handler(reading: 9).setBadgeCount(2)
+    XCTAssertEqual(handler(reading: 9).getBadgeCount(), 2)
   }
 
   func testClearResetsCounterAndIcon() {

@@ -80,7 +80,7 @@ public final class ImageDownloader: ImageDownloading {
   /// A cached file for `key`, re-validated on every hit: it must fit the
   /// current `maxBytes` and still carry the signature its extension claims
   /// (files cached by older versions may not). A stale file is deleted and
-  /// treated as a miss.
+  /// treated as a miss; a valid hit gets a fresh modification date.
   private func cachedFile(_ key: String, maxBytes: Int64) -> URL? {
     let fm = FileManager.default
     let names = (try? fm.contentsOfDirectory(atPath: cacheDirectory.path)) ?? []
@@ -88,6 +88,8 @@ public final class ImageDownloader: ImageDownloading {
       let u = cacheDirectory.appendingPathComponent(name)
       let size = (try? fm.attributesOfItem(atPath: u.path)[.size] as? NSNumber)?.int64Value ?? 0
       if size > 0, size <= maxBytes, let head = Self.head(of: u), Self.imageType(of: head) == u.pathExtension {
+        // Touch on use: pruning drops the least recently used files first.
+        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: u.path)
         return u
       }
       try? fm.removeItem(at: u)

@@ -265,4 +265,24 @@ final class ImageDownloaderTests: XCTestCase {
     XCTAssertTrue(FileManager.default.fileExists(atPath: r.path))
     XCTAssertFalse(FileManager.default.fileExists(atPath: old.path))
   }
+
+  func testCacheHitRefreshesModificationDateSoPruningIsLRU() async throws {
+    StubURLProtocol.set("https://img.test/hot.png", .respond(status: 200, headers: ["Content-Type": "image/png"], chunks: [tinyPNG]))
+    let firstOpt = await get("https://img.test/hot.png")
+    let hot = try XCTUnwrap(firstOpt)
+    let now = Date()
+    try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-2 * 24 * 3600)], ofItemAtPath: hot.path)
+    let hitOpt = await get("https://img.test/hot.png")
+    XCTAssertEqual(hitOpt, hot)
+    let mtime = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: hot.path)[.modificationDate] as? Date)
+    XCTAssertLessThan(abs(mtime.timeIntervalSinceNow), 60, "hit refreshed the mtime")
+
+    // Newer-than-before files exist; the recently used one survives a prune.
+    let a = try makeFile("push_notifications_img_a.png", age: 3600, now: now)
+    let b = try makeFile("push_notifications_img_b.png", age: 7200, now: now)
+    ImageDownloader.pruneCache(directory: dir, keeping: nil, now: now, maxFiles: 2)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: hot.path))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: a.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: b.path))
+  }
 }
