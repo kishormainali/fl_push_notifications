@@ -8,7 +8,7 @@
 
 **Tech Stack:** Flutter plugin (Dart, Kotlin, Swift), `firebase_core`, `firebase_messaging`, `flutter_local_notifications` (latest from pub.dev at scaffold time), `pigeon`.
 
-**Spec:** `docs/superpowers/specs/2026-11-01-push-notifications-wrapper-design.md`
+**Spec:** `doc/superpowers/specs/2026-11-01-push-notifications-wrapper-design.md`
 
 ## Global Constraints
 
