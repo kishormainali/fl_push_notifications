@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.kishormainali.push_notifications_example"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

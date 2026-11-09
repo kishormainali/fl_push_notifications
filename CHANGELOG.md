@@ -23,6 +23,8 @@
 
 ## 0.1.0
 
+* Depends on `flutter_local_notifications` ^23.0.0 (requires Flutter 3.44+, app
+  `compileSdk` 37 and AGP 9.1.1+ on Android).
 * One-call `PushNotifications.instance.init` for FCM and local notifications
   (permissions, Android channels, iOS foreground presentation, token,
   background handler).

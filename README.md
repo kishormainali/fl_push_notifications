@@ -17,7 +17,7 @@ the foreground, background and terminated states.
 
 - firebase_core ^5.1.0
 - firebase_messaging ^17.0.1
-- flutter_local_notifications ^22.3.3
+- flutter_local_notifications ^23.0.0
 - pigeon ^29.1.0 (dev)
 
 ## Install
@@ -382,6 +382,7 @@ desugaring, Swift Package Manager and the app delegate).
 
   ```kotlin
   android {
+      compileSdk = 37 // flutter_local_notifications 23 requires compileSdk 37 (AGP 9.1.1+)
       compileOptions {
           isCoreLibraryDesugaringEnabled = true
       }

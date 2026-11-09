@@ -150,3 +150,8 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
       `content-available` and image attachment (OS throttling).
 - [ ] **[DEFERRED RISK]** iOS Notification Service Extension attaches the image
       for a notification message with `mutable-content: 1`.
+- [ ] **[DEFERRED RISK]** `flutter_local_notifications` 23 (Android): background
+      activity launches are now explicitly denied on Android 14+ for its
+      notification content intents, and a fallback small icon is used when none
+      is set. Verify on an Android 14+ device that tapping a foreground local
+      notification (text-only) still opens the app and delivers the tap.
