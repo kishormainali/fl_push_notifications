@@ -80,10 +80,15 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
 - [ ] `autoClearOnForeground`: badge clears at launch and on every resume.
 - [ ] Both options off (default): neither happens.
 - [ ] Android, `autoIncrementOnPush` on: send 3 data-only pushes in the
-      background; long-press the app icon (or check a numeric launcher) and the
-      latest notification shows the number 3.
+      background. A notification-derived badge (dot, or the long-press count on
+      Launcher3-style launchers) reflects the 3 active notifications (not 6); a
+      recognized vendor launcher (Samsung, Xiaomi, ...) shows the running
+      counter 3, and keeps it after the notifications are dismissed.
 - [ ] iOS: send a notification message with `aps.badge = 7` while the app is in
-      the background, open the app (auto-clear off) and `getBadgeCount` returns 7.
+      the background, open the app (auto-clear off) and `getBadgeCount` returns 7;
+      `incrementBadge` then sets the icon to 8 (not lower).
+- [ ] iOS: `setBadgeCount(4)` then immediately `getBadgeCount` returns 4, and
+      `incrementBadge` right after returns 5.
 
 ## 5. Installation ID (FID)
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:push_notifications/src/background_handler.dart';
 import 'package:push_notifications/src/messages.g.dart';
@@ -28,11 +29,13 @@ void main() {
     RemoteMessage m, {
     Future<void> Function(RemoteMessage)? hook,
     Future<void> Function()? initFirebase,
+    TargetPlatform? platform,
   }) => handleBackgroundMessage(
     m,
     host: host,
     initFirebase: initFirebase ?? () async => firebaseCalls++,
     resolveHook: (_) => hook,
+    platform: platform,
   );
 
   setUp(() {
@@ -157,18 +160,37 @@ void main() {
   });
 
   group('badge on the shown notification (autoIncrementOnPush)', () {
-    test('data-only message carries the incremented count, incremented '
-        'before the show', () async {
+    test('iOS: data-only message carries the incremented count, '
+        'incremented before the show', () async {
       host.storedConfig = cfg(inc: true);
       host.badgeIncrements = 4;
-      await run(const RemoteMessage(messageId: 'nb1', data: {'title': 'a'}));
+      await run(
+        const RemoteMessage(messageId: 'nb1', data: {'title': 'a'}),
+        platform: TargetPlatform.iOS,
+      );
       expect(host.hostCalls, ['increment', 'show']);
       expect(host.shownNotifications.single.badge, 5);
     });
 
+    test('Android: increments before the show but sets no badge (launchers '
+        'sum setNumber)', () async {
+      host.storedConfig = cfg(inc: true);
+      host.badgeIncrements = 2;
+      await run(
+        const RemoteMessage(messageId: 'nb1a', data: {'title': 'a'}),
+        platform: TargetPlatform.android,
+      );
+      expect(host.hostCalls, ['increment', 'show']);
+      expect(host.badgeIncrements, 3);
+      expect(host.shownNotifications.single.badge, isNull);
+    });
+
     test('autoIncrementOnPush off: no badge on the content', () async {
       host.storedConfig = cfg(inc: false);
-      await run(const RemoteMessage(messageId: 'nb2', data: {'title': 'a'}));
+      await run(
+        const RemoteMessage(messageId: 'nb2', data: {'title': 'a'}),
+        platform: TargetPlatform.iOS,
+      );
       expect(host.hostCalls, ['show']);
       expect(host.shownNotifications.single.badge, isNull);
     });
@@ -176,7 +198,10 @@ void main() {
     test('increment failure still shows, without a badge', () async {
       host.storedConfig = cfg(inc: true);
       host.failIncrement = true;
-      await run(const RemoteMessage(messageId: 'nb3', data: {'title': 'a'}));
+      await run(
+        const RemoteMessage(messageId: 'nb3', data: {'title': 'a'}),
+        platform: TargetPlatform.iOS,
+      );
       expect(host.shownNotifications, hasLength(1));
       expect(host.shownNotifications.single.badge, isNull);
     });
@@ -198,8 +223,8 @@ void main() {
       () async {
         host.storedConfig = cfg(inc: true);
         const m = RemoteMessage(messageId: 'nb5', data: {'title': 'a'});
-        await run(m);
-        await run(m);
+        await run(m, platform: TargetPlatform.iOS);
+        await run(m, platform: TargetPlatform.iOS);
         expect(host.badgeIncrements, 2);
         expect(host.shownNotifications, hasLength(1));
         expect(host.shownNotifications.single.badge, 1);
@@ -262,7 +287,10 @@ void main() {
     await run(m);
     await run(m);
     expect(host.shownNotifications, hasLength(2));
-    expect(host.shownNotifications[0].id, isNot(host.shownNotifications[1].id));
+    expect(
+      host.shownNotifications[0].id,
+      isNot(host.shownNotifications[1].id),
+    );
   });
 
   test('a failed show does not suppress a redelivery of the same '
@@ -324,27 +352,28 @@ void main() {
     expect(host.shownNotifications, hasLength(2));
   });
 
-  test(
-    'overlapping same id: failed first show still allows redelivery',
-    () async {
-      host.showGate = Completer<void>();
-      host.failShow = true;
-      const m = RemoteMessage(messageId: 'race-2', data: {'title': 'a'});
-      final f1 = run(m);
-      await pumpEventQueue();
-      host.showGate!.complete();
-      await f1;
-      host.failShow = false;
-      await run(m);
-      expect(host.shownNotifications, hasLength(1));
-    },
-  );
+  test('overlapping same id: failed first show still allows redelivery',
+      () async {
+    host.showGate = Completer<void>();
+    host.failShow = true;
+    const m = RemoteMessage(messageId: 'race-2', data: {'title': 'a'});
+    final f1 = run(m);
+    await pumpEventQueue();
+    host.showGate!.complete();
+    await f1;
+    host.failShow = false;
+    await run(m);
+    expect(host.shownNotifications, hasLength(1));
+  });
 
   test('empty-string messageIds are treated as absent: both show with '
       'different ids', () async {
     await run(const RemoteMessage(messageId: '', data: {'title': 'a'}));
     await run(const RemoteMessage(messageId: '', data: {'title': 'b'}));
     expect(host.shownNotifications, hasLength(2));
-    expect(host.shownNotifications[0].id, isNot(host.shownNotifications[1].id));
+    expect(
+      host.shownNotifications[0].id,
+      isNot(host.shownNotifications[1].id),
+    );
   });
 }

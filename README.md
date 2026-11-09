@@ -226,8 +226,10 @@ final count = await PushNotifications.instance.getBadgeCount(); // iOS only
   `requestPermission()` asks for the badge permission. `getBadgeCount` reads the
   number actually shown on the app icon, so it includes a value the OS applied
   from an APNs `aps.badge` (it falls back to the plugin's stored counter when the
-  icon number cannot be read). `autoIncrementOnPush` still counts from the
-  plugin's stored counter.
+  icon number cannot be read, and for 2 s after the plugin's own `setBadgeCount`,
+  which the system applies asynchronously). `incrementBadge` and
+  `autoIncrementOnPush` count from that same number, so they never lower an
+  APNs-applied badge.
 - Android: best effort. There is no official badge API; the plugin sends
   vendor broadcasts and `isBadgeSupported()` reports whether the launcher is
   recognized. `getBadgeCount()` returns `null`. The vendor badge permissions in
@@ -237,11 +239,13 @@ final count = await PushNotifications.instance.getBadgeCount(); // iOS only
   (data-only messages while the app is not in the foreground); foreground
   pushes never increment. Auto-clear resets the badge at `init` and whenever the
   app returns to the foreground.
-- With `autoIncrementOnPush` on, a notification shown by the background handler
-  carries the incremented count: Android sets it as the notification number
-  (`setNumber`, shown e.g. on a launcher long-press and used by launchers that
-  derive the badge from notifications), iOS sets it as the notification's badge.
-  If the increment fails the notification is still shown, without a number.
+- With `autoIncrementOnPush` on, the background handler increments before it
+  shows the notification. On iOS the notification carries the new count as its
+  badge (the absolute icon value). On Android the notification gets no number:
+  launchers that show dots or numbers from notifications derive them from the
+  active notifications (and sum `setNumber`), so the running total is only sent
+  to recognized launchers through the vendor badge counter. If the increment
+  fails the notification is still shown, without a badge.
 
 ## Images
 
@@ -258,7 +262,8 @@ The Notification Service Extension is always https-only with the same limits.
 On iOS the downloaded bytes must be a JPEG, PNG or GIF, detected from the file
 content (the `Content-Type` and URL path are not trusted; an HTML page served
 with an image type is rejected). Images are cached in the temp directory, at
-most 50 files, each kept for up to 7 days. On Android the collapsed view uses a
+most 50 files (least recently used dropped first), each kept for up to 7 days
+after its last use. On Android the collapsed view uses a
 small thumbnail as the large icon, and the expanded view shows the picture once.
 
 ## Guarantees

@@ -1,18 +1,23 @@
 ## Unreleased
 
-* Android: a notification shown by the background handler carries the badge
-  count (`setNumber`) when `autoIncrementOnPush` is on; the increment now
-  happens before the notification is shown (iOS sets it as `content.badge`).
+* iOS: a notification shown by the background handler carries the badge count
+  (`content.badge`) when `autoIncrementOnPush` is on; the increment now happens
+  before the notification is shown. Android notifications get no number
+  (launchers sum `setNumber`); the running total stays in the vendor badge.
 * Android: big-picture notifications use a small thumbnail as the large icon
   and clear the expanded large icon, so the picture is not repeated and the
   full bitmap is not sent twice.
 * Android: a failing launcher lookup no longer escapes the badge methods; it
   counts as an unrecognized launcher.
 * iOS: `getBadgeCount` returns the number shown on the app icon (including an
-  APNs-applied `badge`), falling back to the stored counter.
+  APNs-applied `badge`), falling back to the stored counter (also briefly after
+  the plugin's own `setBadgeCount`); `incrementBadge` counts from it, so it
+  never lowers an APNs-applied badge.
 * iOS: image downloads are accepted only when the content is a JPEG, PNG or GIF
-  (sniffed, not trusted from MIME or URL); cache hits are re-validated and the
-  cache is pruned to 50 files / 7 days.
+  (sniffed, not trusted from MIME or URL), the image types Apple documents for
+  `UNNotificationAttachment`; HEIC images are no longer attached. Cache hits are
+  re-validated and refreshed, and the cache is pruned (least recently used
+  first) to 50 files / 7 days.
 * iOS: the temporary attachment copy is deleted when posting a notification
   fails.
 

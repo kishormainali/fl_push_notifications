@@ -3,6 +3,8 @@ import 'dart:ui' show CallbackHandle, PluginUtilities;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -31,8 +33,9 @@ NotificationContent buildNativeContent({
   required Map<String, String?> data,
   String? imageUrl,
 
-  /// App icon badge to set with the notification (Android `setNumber`, iOS
-  /// `content.badge`); null leaves it unchanged.
+  /// App icon badge to set with the notification (iOS `content.badge`;
+  /// Android `setNumber`, which launchers sum across notifications, so the
+  /// background handler passes it on iOS only); null leaves it unchanged.
   int? badge,
 }) {
   final hasImage = imageUrl != null && imageUrl.isNotEmpty;
@@ -98,6 +101,9 @@ Future<void> handleBackgroundMessage(
   PushHostApi? host,
   Future<void> Function()? initFirebase,
   Future<void> Function(RemoteMessage)? Function(int handle)? resolveHook,
+
+  /// Platform override for tests; defaults to [defaultTargetPlatform].
+  TargetPlatform? platform,
 }) async {
   // Empty-string ids count as absent. Claim the id before the first await.
   final id = m.messageId;
@@ -115,10 +121,13 @@ Future<void> handleBackgroundMessage(
     // delivered twice therefore shows twice: there is nothing to dedupe on.
     final effectiveId = hasId ? id : generateMessageId();
 
-    // Increment first so a shown notification carries the running count
-    // (Android `setNumber`, iOS `content.badge`). Every message increments,
-    // duplicates and notification-block messages included; a failure only
-    // means the notification is shown without a badge.
+    // Increment first so a shown notification can carry the running count.
+    // Every message increments, duplicates and notification-block messages
+    // included; a failure only means the notification has no badge. Only iOS
+    // puts the count on the notification (`content.badge` is the absolute
+    // icon value). On Android `setNumber` is the item count of one
+    // notification and launchers sum it across notifications, so the
+    // running total lives only in the vendor badge counter.
     int? badge;
     if (config?.autoIncrementOnPush ?? false) {
       try {
@@ -139,7 +148,9 @@ Future<void> handleBackgroundMessage(
             ? m.data[channelKey].toString()
             : defaultChannel,
         messageId: effectiveId,
-        badge: badge,
+        badge: (platform ?? defaultTargetPlatform) == TargetPlatform.iOS
+            ? badge
+            : null,
       );
       final empty =
           (content.title ?? '').isEmpty && (content.body ?? '').isEmpty;
