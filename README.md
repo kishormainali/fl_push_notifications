@@ -529,3 +529,7 @@ flutter test
 cd example/android && ./gradlew :push_notifications:testDebugUnitTest
 cd ios/push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
