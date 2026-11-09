@@ -18,7 +18,8 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
     let defaults = PushStorage.sharedDefaults()
     let flutterApi = PushFlutterApi(binaryMessenger: registrar.messenger())
     let api = PushHostApiImpl(
-      badge: BadgeHandler(defaults: defaults, applier: SystemBadgeApplier()),
+      badge: BadgeHandler(
+        defaults: defaults, applier: SystemBadgeApplier(), reader: SystemBadgeReader()),
       storage: PushStorage(defaults: defaults),
       taps: TapRouter.shared,
       // Live taps go to the engine whose Dart ran `init` (it is the one that

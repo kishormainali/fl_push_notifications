@@ -80,6 +80,22 @@ public enum NotificationBuilder {
     return s
   }
 
+  /// Posts `request` through `add` (normally `UNUserNotificationCenter.add`).
+  /// On success the system has moved the attachment copies into its store;
+  /// on failure they would be left in the temp directory, so they are
+  /// removed before the error is rethrown.
+  public static func post(
+    _ request: UNNotificationRequest,
+    add: (UNNotificationRequest) async throws -> Void
+  ) async throws {
+    do {
+      try await add(request)
+    } catch {
+      for a in request.content.attachments { try? FileManager.default.removeItem(at: a.url) }
+      throw error
+    }
+  }
+
   /// Attachment for `file`, or nil when the system rejects it. The system moves
   /// attached files into its own store, so a private copy is attached and the
   /// cached original stays usable.

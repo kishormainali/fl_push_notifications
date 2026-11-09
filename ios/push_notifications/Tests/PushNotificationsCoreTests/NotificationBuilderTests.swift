@@ -107,4 +107,34 @@ final class NotificationBuilderTests: XCTestCase {
     XCTAssertFalse(NotificationBuilder.isOurs(["push_payload": 1]))
     XCTAssertFalse(NotificationBuilder.isOurs(["gcm.message_id": "x"]))
   }
+
+  func testPostFailureRemovesTheAttachmentCopy() async throws {
+    let file = dir.appendingPathComponent("img.png")
+    try tinyPNG.write(to: file)
+    let c = NotificationBuilder.build(spec(imageFile: file))
+    let copy = try XCTUnwrap(c.attachments.first?.url)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: copy.path))
+    let request = UNNotificationRequest(identifier: "x", content: c, trigger: nil)
+    struct AddFailed: Error {}
+    do {
+      try await NotificationBuilder.post(request) { _ in throw AddFailed() }
+      XCTFail("must rethrow")
+    } catch is AddFailed {}
+    XCTAssertFalse(FileManager.default.fileExists(atPath: copy.path))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: file.path), "cached original untouched")
+  }
+
+  func testPostSuccessLeavesTheAttachmentToTheSystem() async throws {
+    let file = dir.appendingPathComponent("img.png")
+    try tinyPNG.write(to: file)
+    let c = NotificationBuilder.build(spec(imageFile: file))
+    let copy = try XCTUnwrap(c.attachments.first?.url)
+    var added: [String] = []
+    try await NotificationBuilder.post(UNNotificationRequest(identifier: "y", content: c, trigger: nil)) {
+      added.append($0.identifier)
+    }
+    XCTAssertEqual(added, ["y"])
+    XCTAssertTrue(FileManager.default.fileExists(atPath: copy.path))
+    try? FileManager.default.removeItem(at: copy)
+  }
 }

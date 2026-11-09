@@ -10,8 +10,10 @@ public protocol ImageDownloading: AnyObject {
 /// Downloads notification images into a temp-dir cache keyed by a hash of the
 /// URL. Every failure yields `nil` so callers fall back to text-only:
 /// malformed url, disallowed scheme (also on redirects), non-2xx status,
-/// timeout, body over `maxBytes` (declared or streamed), empty body, or a type
-/// `UNNotificationAttachment` would not accept.
+/// timeout, body over `maxBytes` (declared or streamed), empty body, or bytes
+/// that are not JPEG, PNG or GIF (sniffed from the content; the MIME type and
+/// URL path are not trusted). The cache is bounded: after each write it keeps
+/// at most [maxCachedFiles] files and drops files older than [maxCacheAge].
 public final class ImageDownloader: ImageDownloading {
   /// Shared instance caching in `<tmp>/push_notifications_images`.
   public static let shared = ImageDownloader(
@@ -31,7 +33,7 @@ public final class ImageDownloader: ImageDownloading {
     guard let parsed = Self.parse(url) else { return fail("malformed url") }
     guard Self.isAllowed(parsed, httpsOnly: httpsOnly) else { return fail("url not allowed") }
     let key = Self.prefix + Self.sha256(url)
-    if let cached = cachedFile(key) { return cached }
+    if let cached = cachedFile(key, maxBytes: maxBytes) { return cached }
 
     let config = configuration.copy() as! URLSessionConfiguration
     let t = max(timeout, 0.001)
@@ -44,12 +46,14 @@ public final class ImageDownloader: ImageDownloading {
     let session = URLSession(configuration: config, delegate: fetch, delegateQueue: nil)
     defer { session.invalidateAndCancel() }
     let result = await fetch.run(session: session, url: parsed, timeout: t)
-    guard case .success(let data, let mime) = result else {
+    guard case .success(let data, _) = result else {
       if case .failure(let reason) = result { return fail(reason) }
       return nil
     }
-    guard let ext = Self.fileExtension(mime: mime, url: parsed, data: data) else {
-      return fail("unsupported image type")
+    // Only the signature decides: a wrong MIME plus an image-looking URL
+    // path must not get an HTML page cached under a `.jpg` name.
+    guard let ext = Self.imageType(of: data) else {
+      return fail("not a JPEG, PNG or GIF")
     }
     do {
       try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -66,20 +70,35 @@ public final class ImageDownloader: ImageDownloading {
         try? FileManager.default.removeItem(at: part)
         throw error
       }
+      Self.pruneCache(directory: cacheDirectory, keeping: target, now: Date())
       return target
     } catch {
       return fail("write failed: \(error)")
     }
   }
 
-  private func cachedFile(_ key: String) -> URL? {
-    let names = (try? FileManager.default.contentsOfDirectory(atPath: cacheDirectory.path)) ?? []
+  /// A cached file for `key`, re-validated on every hit: it must fit the
+  /// current `maxBytes` and still carry the signature its extension claims
+  /// (files cached by older versions may not). A stale file is deleted and
+  /// treated as a miss.
+  private func cachedFile(_ key: String, maxBytes: Int64) -> URL? {
+    let fm = FileManager.default
+    let names = (try? fm.contentsOfDirectory(atPath: cacheDirectory.path)) ?? []
     for name in names where name.hasPrefix(key + ".") && !name.hasSuffix(".part") {
       let u = cacheDirectory.appendingPathComponent(name)
-      let size = (try? FileManager.default.attributesOfItem(atPath: u.path)[.size] as? NSNumber)?.int64Value ?? 0
-      if size > 0 { return u }
+      let size = (try? fm.attributesOfItem(atPath: u.path)[.size] as? NSNumber)?.int64Value ?? 0
+      if size > 0, size <= maxBytes, let head = Self.head(of: u), Self.imageType(of: head) == u.pathExtension {
+        return u
+      }
+      try? fm.removeItem(at: u)
     }
     return nil
+  }
+
+  private static func head(of file: URL) -> Data? {
+    guard let h = try? FileHandle(forReadingFrom: file) else { return nil }
+    defer { try? h.close() }
+    return try? h.read(upToCount: 4)
   }
 
   private func fail(_ reason: String) -> URL? {
@@ -102,30 +121,49 @@ public final class ImageDownloader: ImageDownloading {
     return c.url
   }
 
-  /// Extension `UNNotificationAttachment` accepts, from the MIME type, then
-  /// the URL path, then the file signature.
-  static func fileExtension(mime: String?, url: URL, data: Data) -> String? {
-    let byMime: [String: String] = [
-      "image/jpeg": "jpg", "image/jpg": "jpg", "image/pjpeg": "jpg", "image/png": "png",
-      "image/gif": "gif", "image/heic": "heic", "image/heif": "heic",
-    ]
-    if let m = mime?.split(separator: ";").first?.trimmingCharacters(in: .whitespaces).lowercased(),
-      let ext = byMime[m]
-    {
-      return ext
-    }
-    let byPath: [String: String] = ["jpg": "jpg", "jpeg": "jpg", "png": "png", "gif": "gif", "heic": "heic"]
-    if let ext = byPath[url.pathExtension.lowercased()] { return ext }
-    let b = [UInt8](data.prefix(12))
-    if b.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return "png" }
+  /// Extension for the accepted image types, from the content signature
+  /// only: JPEG (`FF D8 FF`), PNG (`89 50 4E 47`), GIF (`GIF8`). Anything
+  /// else (an HTML error page served with an image MIME or `.jpg` path) is nil.
+  static func imageType(of data: Data) -> String? {
+    let b = [UInt8](data.prefix(4))
     if b.starts(with: [0xFF, 0xD8, 0xFF]) { return "jpg" }
+    if b.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return "png" }
     if b.starts(with: Array("GIF8".utf8)) { return "gif" }
-    if b.count >= 12, Array(b[4..<8]) == Array("ftyp".utf8),
-      ["heic", "heix", "mif1", "msf1"].contains(String(decoding: b[8..<12], as: UTF8.self))
-    {
-      return "heic"
-    }
     return nil
+  }
+
+  /// Cache bounds applied after every write.
+  public static let maxCachedFiles = 50
+  public static let maxCacheAge: TimeInterval = 7 * 24 * 3600
+
+  /// Deletes cached images older than `maxAge`, then the oldest beyond
+  /// `maxFiles`. `keeping` (the file just written) is never deleted and
+  /// counts toward `maxFiles`. In-flight `.part` files are only removed by
+  /// age. Never throws; every failure is ignored.
+  static func pruneCache(
+    directory: URL, keeping: URL?, now: Date,
+    maxFiles: Int = maxCachedFiles, maxAge: TimeInterval = maxCacheAge,
+    fileManager fm: FileManager = .default
+  ) {
+    guard let names = try? fm.contentsOfDirectory(atPath: directory.path) else { return }
+    let keptName = keeping?.lastPathComponent
+    var live: [(url: URL, date: Date)] = []
+    for name in names where name.hasPrefix(prefix) && name != keptName {
+      let u = directory.appendingPathComponent(name)
+      guard let attrs = try? fm.attributesOfItem(atPath: u.path),
+        (attrs[.type] as? FileAttributeType) == .typeRegular
+      else { continue }
+      let date = (attrs[.modificationDate] as? Date) ?? .distantPast
+      if now.timeIntervalSince(date) > maxAge {
+        try? fm.removeItem(at: u)
+      } else if !name.hasSuffix(".part") {
+        live.append((u, date))
+      }
+    }
+    let budget = max(0, maxFiles - (keptName == nil ? 0 : 1))
+    guard live.count > budget else { return }
+    live.sort { $0.date > $1.date }
+    for victim in live[budget...] { try? fm.removeItem(at: victim.url) }
   }
 
   static func sha256(_ s: String) -> String {

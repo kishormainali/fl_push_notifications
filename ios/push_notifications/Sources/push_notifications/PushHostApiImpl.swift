@@ -60,7 +60,8 @@ final class PushHostApiImpl: PushHostApi {
       content: NotificationBuilder.build(Self.spec(content, imageFile: file)),
       trigger: nil)
     do {
-      try await UNUserNotificationCenter.current().add(request)
+      // Removes the temp attachment copy when the add fails.
+      try await NotificationBuilder.post(request) { try await UNUserNotificationCenter.current().add($0) }
     } catch {
       throw PigeonError(code: "show-failed", message: "\(error)", details: nil)
     }
