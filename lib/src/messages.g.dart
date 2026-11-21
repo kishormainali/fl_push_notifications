@@ -680,6 +680,30 @@ class PushHostApi {
     return pigeonVar_replyValue as String?;
   }
 
+  /// Looks up the app string named [key] (an Android string resource, or an
+  /// iOS `Localizable.strings` entry) and formats [args] into it. Returns
+  /// `null` when there is no such string.
+  Future<String?> resolveLocalizedString(String key, List<String> args) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.fl_push_notifications.PushHostApi.resolveLocalizedString$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[key, args],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as String?;
+  }
+
   Future<void> showNotification(NotificationContent content) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.fl_push_notifications.PushHostApi.showNotification$pigeonVar_messageChannelSuffix';

@@ -96,6 +96,11 @@ abstract class PushHostApi {
   void saveBackgroundConfig(BackgroundConfigMsg config);
   BackgroundConfigMsg? loadBackgroundConfig();
   String? consumeLaunchPayload();
+
+  /// Looks up the app string named [key] (an Android string resource, or an
+  /// iOS `Localizable.strings` entry) and formats [args] into it. Returns
+  /// `null` when there is no such string.
+  String? resolveLocalizedString(String key, List<String> args);
   @async
   void showNotification(NotificationContent content);
   @async

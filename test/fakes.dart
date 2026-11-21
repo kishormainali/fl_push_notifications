@@ -195,6 +195,16 @@ class FakeHostApi extends PushHostApi {
   /// When set, showNotification waits on it before recording.
   Completer<void>? showGate;
 
+  /// Strings returned by [resolveLocalizedString], keyed by loc key.
+  final localized = <String, String>{};
+  final resolvedKeys = <String>[];
+  @override
+  Future<String?> resolveLocalizedString(String key, List<String> args) async {
+    resolvedKeys.add(key);
+    final f = localized[key];
+    return f == null ? null : '$f${args.isEmpty ? '' : ' ${args.join(',')}'}';
+  }
+
   @override
   Future<void> saveBackgroundConfig(BackgroundConfigMsg config) async =>
       savedConfigs.add(config);

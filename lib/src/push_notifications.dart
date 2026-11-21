@@ -552,6 +552,41 @@ class PushNotifications {
         knownChannels: _channelIds,
       );
 
+  /// Fills a missing title/body from the message's `title_loc_key` /
+  /// `body_loc_key` (and args), which FCM would resolve itself only when the
+  /// notification is shown in the background. Never throws.
+  Future<PushMessage> _withLocalizedText(
+    PushMessage m,
+    RemoteNotification? n,
+  ) async {
+    if (n == null) return m;
+    Future<String?> resolve(String? key, List<String> args) async {
+      if (key == null || key.isEmpty) return null;
+      try {
+        final s = await _host.resolveLocalizedString(key, args);
+        return (s == null || s.isEmpty) ? null : s;
+      } catch (e) {
+        debugPrint('fl_push_notifications: resolving "$key" failed: $e');
+        return null;
+      }
+    }
+
+    final title = m.title ?? await resolve(n.titleLocKey, n.titleLocArgs);
+    final body = m.body ?? await resolve(n.bodyLocKey, n.bodyLocArgs);
+    if (title == m.title && body == m.body) return m;
+    return PushMessage(
+      id: m.id,
+      title: title,
+      body: body,
+      data: m.data,
+      imageUrl: m.imageUrl,
+      channelId: m.channelId,
+      source: m.source,
+      appState: m.appState,
+      raw: m.raw,
+    );
+  }
+
   PushMessage _fromPayload(String payload, PushAppState state) =>
       PushMessage.fromLocalPayload(
         payload,
@@ -628,7 +663,10 @@ class PushNotifications {
         _displayed.remove(_displayed.first);
       }
     }
-    final m = _fromRemote(rm, PushAppState.foreground);
+    final m = await _withLocalizedText(
+      _fromRemote(rm, PushAppState.foreground),
+      rm.notification,
+    );
     // Emitted first: the display may wait on an image download (~10 s).
     _foreground.add(m);
     if (!_showForeground || (m.title == null && m.body == null)) return;

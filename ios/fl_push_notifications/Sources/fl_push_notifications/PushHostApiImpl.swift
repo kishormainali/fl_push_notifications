@@ -45,6 +45,10 @@ final class PushHostApiImpl: PushHostApi {
     taps.consumeLaunchPayload(deliver: deliverTap)?.payload
   }
 
+  func resolveLocalizedString(key: String, args: [String]) throws -> String? {
+    LocalizedStrings.resolve(key: key, args: args)
+  }
+
   /// Downloads the image first (big picture only), falls back to text-only on
   /// any image failure, and posts with an id-derived identifier so the same
   /// id replaces the earlier notification.

@@ -483,6 +483,10 @@ protocol PushHostApi {
   func saveBackgroundConfig(config: BackgroundConfigMsg) throws
   func loadBackgroundConfig() throws -> BackgroundConfigMsg?
   func consumeLaunchPayload() throws -> String?
+  /// Looks up the app string named [key] (an Android string resource, or an
+  /// iOS `Localizable.strings` entry) and formats [args] into it. Returns
+  /// `null` when there is no such string.
+  func resolveLocalizedString(key: String, args: [String]) throws -> String?
   func showNotification(content: NotificationContent) async throws
   func downloadImage(url: String, timeoutMs: Int64, maxBytes: Int64, httpsOnly: Bool) async throws -> String?
 }
@@ -658,6 +662,25 @@ class PushHostApiSetup {
       }
     } else {
       consumeLaunchPayloadChannel.setMessageHandler(nil)
+    }
+    /// Looks up the app string named [key] (an Android string resource, or an
+    /// iOS `Localizable.strings` entry) and formats [args] into it. Returns
+    /// `null` when there is no such string.
+    let resolveLocalizedStringChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.resolveLocalizedString\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      resolveLocalizedStringChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let keyArg = args[0] as! String
+        let argsArg = args[1] as! [String]
+        do {
+          let result = try api.resolveLocalizedString(key: keyArg, args: argsArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      resolveLocalizedStringChannel.setMessageHandler(nil)
     }
     let showNotificationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fl_push_notifications.PushHostApi.showNotification\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

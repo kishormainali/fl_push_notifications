@@ -1,5 +1,10 @@
 ## Unreleased
 
+* Fix (Android): a foreground notification that used `title_loc_key` /
+  `body_loc_key` instead of literal text was never shown. The plugin now
+  resolves the keys from the app's string resources (iOS: `Localizable.strings`)
+  through a new native `resolveLocalizedString`.
+* Docs: `doc/NOTIFICATION_COVERAGE.md` lists how each payload shape is handled.
 * Fix (iOS): a tap that launched the app could be lost when the scene delegate
   did not forward the connection to Flutter plugins (firebase_messaging then
   reports it as `onMessageOpenedApp` before Dart listens). `init` now

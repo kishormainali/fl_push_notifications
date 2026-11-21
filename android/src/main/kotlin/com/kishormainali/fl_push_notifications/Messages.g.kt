@@ -478,6 +478,12 @@ interface PushHostApi {
   fun saveBackgroundConfig(config: BackgroundConfigMsg)
   fun loadBackgroundConfig(): BackgroundConfigMsg?
   fun consumeLaunchPayload(): String?
+  /**
+   * Looks up the app string named [key] (an Android string resource, or an
+   * iOS `Localizable.strings` entry) and formats [args] into it. Returns
+   * `null` when there is no such string.
+   */
+  fun resolveLocalizedString(key: String, args: List<String>): String?
   suspend fun showNotification(content: NotificationContent)
   suspend fun downloadImage(url: String, timeoutMs: Long, maxBytes: Long, httpsOnly: Boolean): String?
 
@@ -677,6 +683,24 @@ interface PushHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.consumeLaunchPayload())
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.fl_push_notifications.PushHostApi.resolveLocalizedString$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val keyArg = args[0] as String
+            val argsArg = args[1] as List<String>
+            val wrapped: List<Any?> = try {
+              listOf(api.resolveLocalizedString(keyArg, argsArg))
             } catch (exception: Throwable) {
               MessagesPigeonUtils.wrapError(exception)
             }

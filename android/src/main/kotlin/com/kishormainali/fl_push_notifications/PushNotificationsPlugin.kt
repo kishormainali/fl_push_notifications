@@ -67,6 +67,7 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
                 takeLaunchPayload = {
                     consumeLaunchThenDeliverRest(taps, { mainHandler.post(it) }, ::deliverLive)
                 },
+                resolveString = { key, args -> resolveStringResource(context, key, args) },
             ),
         )
         flutterApi = PushFlutterApi(messenger)

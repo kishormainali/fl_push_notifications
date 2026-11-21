@@ -354,6 +354,54 @@ void main() {
     expect(emitted.single.appState, PushAppState.foreground);
   });
 
+  group('foreground localized text', () {
+    RemoteMessage loc(String id, {String? title}) => RemoteMessage(
+      messageId: id,
+      notification: RemoteNotification(
+        title: title,
+        titleLocKey: 'greet_title',
+        titleLocArgs: const ['Ann'],
+        bodyLocKey: 'greet_body',
+      ),
+    );
+
+    test('title and body come from the resolved loc keys', () async {
+      host.localized['greet_title'] = 'Hello';
+      host.localized['greet_body'] = 'Welcome back';
+      final p = await started();
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(loc('l1'));
+      await pump();
+      expect(emitted.single.title, 'Hello Ann');
+      expect(emitted.single.body, 'Welcome back');
+      expect(local.shown, hasLength(1));
+    });
+
+    test('a literal title wins; only the missing part is resolved', () async {
+      host.localized['greet_title'] = 'Hello';
+      host.localized['greet_body'] = 'Welcome back';
+      final p = await started();
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(loc('l2', title: 'Literal'));
+      await pump();
+      expect(emitted.single.title, 'Literal');
+      expect(emitted.single.body, 'Welcome back');
+      expect(host.resolvedKeys, ['greet_body']);
+    });
+
+    test('unknown keys leave the message as before and do not throw', () async {
+      final p = await started();
+      final emitted = <PushMessage>[];
+      p.onForegroundMessage.listen(emitted.add);
+      msg.onMessageCtl.add(loc('l3'));
+      await pump();
+      expect(emitted.single.title, isNull);
+      expect(local.shown, isEmpty);
+    });
+  });
+
   group('foreground data-only', () {
     RemoteMessage dataOnly(String id, Map<String, dynamic> data) =>
         RemoteMessage(messageId: id, data: data);

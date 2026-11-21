@@ -12,6 +12,8 @@ class PushHostApiImpl(
     private val downloader: ImageDownloader,
     /** Returns the launch tap and delivers any further queued taps live. */
     private val takeLaunchPayload: () -> String?,
+    /** Resolves an app string resource by name; null when missing. */
+    private val resolveString: (String, List<String>) -> String? = { _, _ -> null },
 ) : PushHostApi {
     override fun isBadgeSupported(): Boolean = badge.isBadgeSupported()
     override fun setBadgeCount(count: Long) = badge.setBadgeCount(count)
@@ -26,6 +28,8 @@ class PushHostApiImpl(
         storage.saveBackgroundConfig(config)
     override fun loadBackgroundConfig(): BackgroundConfigMsg? = storage.loadBackgroundConfig()
     override fun consumeLaunchPayload(): String? = takeLaunchPayload()
+    override fun resolveLocalizedString(key: String, args: List<String>): String? =
+        resolveString(key, args)
     override suspend fun showNotification(content: NotificationContent) = presenter.show(content)
     override suspend fun downloadImage(
         url: String,
