@@ -18,7 +18,7 @@ the foreground, background and terminated states.
 - firebase_core ^5.2.0
 - firebase_messaging ^17.1.0
 - flutter_local_notifications ^23.0.0
-- pigeon 29.1.1 (dev, pinned so CI regenerates identical output)
+- pigeon 30.0.4 (dev, pinned so CI regenerates identical output)
 
 Flutter: tested with 3.50.1 (latest stable at the time of writing). The
 supported floor is Flutter 3.47.x (`flutter: '>=3.47.0'`), checked in CI with
