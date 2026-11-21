@@ -1,3 +1,8 @@
+// Flutter 3.50 reports package:flutter/material.dart as deprecated in favor of
+// package:material_ui. The example keeps material.dart (no extra dependency)
+// until the supported Flutter floor moves.
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
