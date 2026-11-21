@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.0
 
 * New: `PushNotifications.show(PushNotification)` posts a notification from app
   code, with optional `groupKey` and `PushAction` buttons. A button press is

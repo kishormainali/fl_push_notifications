@@ -1,6 +1,6 @@
 name: fl_push_notifications
 description: "Unified push notifications for Flutter on Android and iOS: FCM and local notifications, tap routing, channels, badges and image notifications."
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/kishormainali/fl_push_notifications
 repository: https://github.com/kishormainali/fl_push_notifications
 issue_tracker: https://github.com/kishormainali/fl_push_notifications/issues

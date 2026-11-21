@@ -35,7 +35,7 @@ Or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  fl_push_notifications: ^0.1.0
+  fl_push_notifications: ^0.2.0
   firebase_core: ^5.2.0
 ```
 
@@ -701,7 +701,7 @@ cd ios/fl_push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
 
 The workflow is safe to re-run. It asks the pub.dev API whether `X.Y.Z` is already published; if so, the test and publish jobs are skipped and only the GitHub release is created (or updated). So re-pushing a tag for an already-published version only creates the GitHub release. If publishing fails or the run is cancelled, no release is created. If the pub.dev lookup itself fails (anything other than HTTP 200), the version is treated as not yet published and pub.dev rejects a real duplicate.
 
-0.1.0 was published manually and has no `v0.1.0` tag (tagging it would trigger the workflow for a version that is already live). The first tagged release is the next version.
+0.1.0 was published manually and has no `v0.1.0` tag (tagging it would trigger the workflow for a version that is already live). 0.2.0 is the first tagged release.
 
 One-time setup on pub.dev (package admin > Automated publishing > GitHub Actions): repository `kishormainali/fl_push_notifications`, tag pattern `v{{version}}`, environment `pub.dev`.
 
