@@ -9,6 +9,7 @@ doc/superpowers/
 .dart_tool/
 .packages
 build/
+coverage/
 .flutter-plugins
 .flutter-plugins-dependencies
 pubspec.lock

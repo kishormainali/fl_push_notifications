@@ -20,7 +20,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.47.8
+          flutter-version: 3.50.1
           cache: true
       - run: flutter --version
       - run: flutter pub get
@@ -32,7 +32,7 @@ jobs:
           flutter pub get
           flutter analyze
       - name: Format (generated *.g.dart files are excluded)
-        run: dart format --output=none --set-exit-if-changed $(git ls-files '*.dart' | grep -v '\.g\.dart$')
+        run: git ls-files '*.dart' | grep -v '\.g\.dart$' | xargs dart format --output=none --set-exit-if-changed
       - name: Unit tests
         run: flutter test
       - name: Pigeon output is committed and up to date
@@ -43,6 +43,24 @@ jobs:
           git diff --exit-code
       - name: Publish dry run
         run: flutter pub publish --dry-run
+
+  # The supported SDK floor (pubspec `flutter: >=3.47.0`). Only resolves,
+  # analyzes and tests; format, Pigeon and the publish dry run run on the
+  # primary job above.
+  compat:
+    name: Compat (Flutter floor 3.47.8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.8
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
 
   android:
     name: Android example build and unit tests
@@ -56,7 +74,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.47.8
+          flutter-version: 3.50.1
           cache: true
       - run: flutter pub get
       - name: flutter build apk --debug
@@ -78,7 +96,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.47.8
+          flutter-version: 3.50.1
           cache: true
       - name: Enable Swift Package Manager
         run: flutter config --enable-swift-package-manager
