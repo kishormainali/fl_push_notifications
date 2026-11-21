@@ -28,15 +28,17 @@ class TapDispatcher {
   /// Queues [m] and, once ready, delivers it. The returned future may complete
   /// before the tap is delivered when another flush is already running.
   Future<void> handleTap(PushMessage m) async {
-    if (_seen.contains(m.id)) {
-      debugPrint('fl_push_notifications: duplicate tap ${m.id} dropped');
+    // A button press is a different event from a tap on the body.
+    final key = m.actionId == null ? m.id : '${m.id}#${m.actionId}';
+    if (_seen.contains(key)) {
+      debugPrint('fl_push_notifications: duplicate tap $key dropped');
       // Refresh recency for LRU.
       _seen
-        ..remove(m.id)
-        ..add(m.id);
+        ..remove(key)
+        ..add(key);
       return;
     }
-    _seen.add(m.id);
+    _seen.add(key);
     while (_seen.length > dedupeCapacity) {
       _seen.remove(_seen.first);
     }

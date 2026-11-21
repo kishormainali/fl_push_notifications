@@ -60,11 +60,16 @@ Image rows on iOS: use a physical device. Per the Firebase receive-messages
 page the iOS Simulator does not display notification images. The plugin's
 service extension has no delivery-metrics (BigQuery) export.
 
-Known gap (not a test failure): localization keys are not resolved. Send a
-notification message with only `title_loc_key`/`body_loc_key` (Android) or
-`title-loc-key`/`loc-key` (APNs): the OS shows it in the background, but
-`PushMessage.title`/`body` can be `null` on tap, and the Android foreground
-shows nothing (no `title`/`body`). Data-only messages are never localized.
+Localization: send a notification message with only `title_loc_key`/`body_loc_key`
+(Android, with matching `strings.xml` entries) or `title-loc-key`/`loc-key`
+(APNs, `Localizable.strings`). In the Android foreground the plugin shows it with
+the resolved text; on tap `PushMessage.title`/`body` are resolved too. Data-only
+messages are never localized.
+
+`show()` (device check): post a notification with two buttons and a `groupKey`
+twice. Android: the notifications bundle under one summary; pressing a button
+opens the app and the `decisionMaker` gets `actionId`. iOS: same, grouped by
+thread. Swipe one away with the app running: `onDismiss` emits it.
 
 ## 2. Tap routing and duplicates
 

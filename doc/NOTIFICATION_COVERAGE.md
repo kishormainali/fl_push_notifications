@@ -16,6 +16,7 @@ Dart/Swift/Kotlin unit tests; "Manual" means it needs a device
 | image (`android.imageUrl`, `apple.imageUrl`, data `imageKey`) | any | BigPicture; text-only on download failure | Service Extension attaches it; simulators don't render images | Unit, Manual (iOS display) |
 | silent (`content-available`, no alert) | background | Handler runs, nothing shown | Handler runs on a fetch wake-up, nothing shown | Unit |
 | tap that launches the app | terminated | `getInitialMessage` / launch payload | same, plus held `onMessageOpenedApp` (see README, UIScene) | Unit, simulator |
+| `show()` with buttons / group | any | Action intents carry `actionId`; group summary posted; delete intent reports dismissals | Category with `customDismissAction`; thread identifier; dismiss and action responses | Unit (Dart, Kotlin planner, Swift), Manual |
 | same `messageId` delivered twice | any | Shown once | Shown once | Unit |
 
 ## Known gaps

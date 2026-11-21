@@ -1,6 +1,17 @@
 import Foundation
 import UserNotifications
 
+/// A notification button: pressing it opens the app and reports `id`.
+public struct NotificationActionSpec: Equatable {
+  public var id: String
+  public var title: String
+
+  public init(id: String, title: String) {
+    self.id = id
+    self.title = title
+  }
+}
+
 /// Platform-neutral input for [NotificationBuilder], mapped from the Pigeon
 /// `NotificationContent` by the plugin.
 public struct NotificationSpec {
@@ -16,10 +27,14 @@ public struct NotificationSpec {
   public var messageId: String?
   /// Local image file to attach (already downloaded).
   public var imageFile: URL?
+  /// Notifications with the same key share a thread (grouped in the list).
+  public var groupKey: String?
+  public var actions: [NotificationActionSpec]
 
   public init(
     id: Int64, title: String?, body: String?, channelId: String, data: [String: String?],
-    imageUrl: String?, badge: Int?, messageId: String?, imageFile: URL?
+    imageUrl: String?, badge: Int?, messageId: String?, imageFile: URL?,
+    groupKey: String? = nil, actions: [NotificationActionSpec] = []
   ) {
     self.id = id
     self.title = title
@@ -30,6 +45,8 @@ public struct NotificationSpec {
     self.badge = badge
     self.messageId = messageId
     self.imageFile = imageFile
+    self.groupKey = groupKey
+    self.actions = actions
   }
 }
 
@@ -46,7 +63,8 @@ public enum NotificationBuilder {
     if let b = spec.body { c.body = b }
     if let badge = spec.badge { c.badge = NSNumber(value: max(0, badge)) }
     c.sound = .default
-    c.threadIdentifier = spec.channelId
+    c.threadIdentifier = (spec.groupKey?.isEmpty == false) ? spec.groupKey! : spec.channelId
+    c.categoryIdentifier = NotificationCategories.identifier(for: spec.actions)
     c.userInfo = [payloadKey: payloadJSON(spec)]
     if let file = spec.imageFile, let a = attachment(for: file) {
       c.attachments = [a]
@@ -111,5 +129,54 @@ public enum NotificationBuilder {
       NSLog("fl_push_notifications: attachment failed, showing text-only: \(error)")
       return nil
     }
+  }
+}
+
+/// Notification categories carry the buttons and ask iOS to report dismissals
+/// (`customDismissAction`), which it otherwise does not.
+public enum NotificationCategories {
+  /// Category used when a notification has no buttons.
+  public static let defaultIdentifier = "fl_push.default"
+
+  /// Stable identifier for an ordered list of buttons.
+  public static func identifier(for actions: [NotificationActionSpec]) -> String {
+    if actions.isEmpty { return defaultIdentifier }
+    var h: UInt32 = 0x811c_9dc5
+    for u in actions.map({ "\($0.id)\u{1}\($0.title)" }).joined(separator: "\u{2}").utf8 {
+      h = (h ^ UInt32(u)) &* 0x0100_0193
+    }
+    return "fl_push.\(String(h, radix: 16))"
+  }
+
+  public static func category(for actions: [NotificationActionSpec]) -> UNNotificationCategory {
+    UNNotificationCategory(
+      identifier: identifier(for: actions),
+      actions: actions.map { UNNotificationAction(identifier: $0.id, title: $0.title, options: [.foreground]) },
+      intentIdentifiers: [],
+      options: [.customDismissAction])
+  }
+
+  /// Registers the category for `actions` next to the existing ones (the
+  /// app's and other plugins' categories are kept).
+  public static func register(
+    for actions: [NotificationActionSpec], center: UNUserNotificationCenter = .current()
+  ) async {
+    let wanted = category(for: actions)
+    var all = await center.notificationCategories()
+    if all.contains(where: { $0.identifier == wanted.identifier }) { return }
+    all.insert(wanted)
+    center.setNotificationCategories(all)
+  }
+
+  /// `payload` with `actionId` added (the tap payload of a button press).
+  public static func payloadWithAction(_ payload: String, actionId: String) -> String {
+    guard let d = payload.data(using: .utf8),
+      var obj = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any]
+    else { return payload }
+    obj["actionId"] = actionId
+    guard let out = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]),
+      let s = String(data: out, encoding: .utf8)
+    else { return payload }
+    return s
   }
 }

@@ -24,6 +24,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -58,6 +59,11 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
             },
             canPost = { canPost(context) },
             notifier = { id, n -> nm.notify(id, n) },
+            summary = { c ->
+                val key = c.groupKey ?: return@NotificationPresenter null
+                val channel = NotificationPlanner.resolveChannel(c.channelId, channels::exists, defaultChannel())
+                NotificationBuilder.summaryId(key) to NotificationBuilder.buildSummary(context, channel, key)
+            },
         )
         PushHostApi.setUp(
             messenger,
@@ -70,7 +76,19 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
                 resolveString = { key, args -> resolveStringResource(context, key, args) },
             ),
         )
-        flutterApi = PushFlutterApi(messenger)
+        flutterApi = PushFlutterApi(messenger).also { api ->
+            DismissBus.listener = { payload ->
+                mainHandler.post {
+                    scope?.launch {
+                        try {
+                            api.onNativeDismiss(payload)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "onNativeDismiss not delivered: $e")
+                        }
+                    }
+                }
+            }
+        }
         // Main.immediate: work started from the main thread (onNewIntent) is
         // not posted behind later main-thread messages.
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -78,6 +96,7 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         PushHostApi.setUp(binding.binaryMessenger, null)
+        DismissBus.listener = null
         flutterApi = null
         scope?.cancel()
         scope = null

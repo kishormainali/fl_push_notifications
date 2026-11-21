@@ -8,5 +8,6 @@ export 'package:flutter_local_notifications/flutter_local_notifications.dart'
 export 'src/config.dart' show PushChannel, BadgeConfig;
 export 'src/push_message.dart'
     show PushMessage, MessageSource, PushAppState, DecisionMaker;
+export 'src/show.dart' show PushAction, PushNotification;
 export 'src/push_notifications.dart'
     show PushNotifications, PushPermissionStatus, BackgroundMessageHook;

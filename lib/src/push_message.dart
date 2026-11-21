@@ -77,6 +77,7 @@ class PushMessage {
     required this.source,
     required this.appState,
     this.raw,
+    this.actionId,
   });
 
   /// Message id: the FCM message id, or a generated id when absent.
@@ -106,6 +107,10 @@ class PushMessage {
   /// The original source object (a [RemoteMessage] for remote messages, the
   /// raw payload for local ones), or `null`.
   final Object? raw;
+
+  /// The id of the notification button the user pressed, or `null` for a tap
+  /// on the notification itself.
+  final String? actionId;
 
   /// [knownChannels] null means channel ids are not validated.
   factory PushMessage.fromRemote(
@@ -173,6 +178,7 @@ class PushMessage {
           source: MessageSource.local,
           appState: state,
           raw: payload,
+          actionId: _nonEmpty(j['actionId']?.toString()),
         );
       }
     } catch (e) {

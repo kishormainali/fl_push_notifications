@@ -214,6 +214,51 @@ enum class ImageStyle(val raw: Int) {
   }
 }
 
+/**
+ * A button on a notification. Pressing it opens the app and reports [id].
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class NotificationAction (
+  val id: String,
+  val title: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): NotificationAction {
+      val id = pigeonVar_list[0] as String
+      val title = pigeonVar_list[1] as String
+      return NotificationAction(id, title)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      title,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as NotificationAction
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.title, other.title)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.id)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.title)
+    return result
+  }
+  override fun toString(): String {
+    return "NotificationAction(id=$id, title=$title)"
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class NotificationContent (
   val id: Long,
@@ -224,7 +269,13 @@ data class NotificationContent (
   val imageUrl: String? = null,
   val imageStyle: ImageStyle,
   val badge: Long? = null,
-  val extras: Map<String?, Any?>
+  val extras: Map<String?, Any?>,
+  /**
+   * Notifications with the same key are grouped (Android group + summary,
+   * iOS thread identifier).
+   */
+  val groupKey: String? = null,
+  val actions: List<NotificationAction>
 )
  {
   companion object {
@@ -238,7 +289,9 @@ data class NotificationContent (
       val imageStyle = pigeonVar_list[6] as ImageStyle
       val badge = pigeonVar_list[7] as Long?
       val extras = pigeonVar_list[8] as Map<String?, Any?>
-      return NotificationContent(id, title, body, channelId, data, imageUrl, imageStyle, badge, extras)
+      val groupKey = pigeonVar_list[9] as String?
+      val actions = pigeonVar_list[10] as List<NotificationAction>
+      return NotificationContent(id, title, body, channelId, data, imageUrl, imageStyle, badge, extras, groupKey, actions)
     }
   }
   fun toList(): List<Any?> {
@@ -252,6 +305,8 @@ data class NotificationContent (
       imageStyle,
       badge,
       extras,
+      groupKey,
+      actions,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -262,7 +317,7 @@ data class NotificationContent (
       return true
     }
     val other = other as NotificationContent
-    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.body, other.body) && MessagesPigeonUtils.deepEquals(this.channelId, other.channelId) && MessagesPigeonUtils.deepEquals(this.data, other.data) && MessagesPigeonUtils.deepEquals(this.imageUrl, other.imageUrl) && MessagesPigeonUtils.deepEquals(this.imageStyle, other.imageStyle) && MessagesPigeonUtils.deepEquals(this.badge, other.badge) && MessagesPigeonUtils.deepEquals(this.extras, other.extras)
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.title, other.title) && MessagesPigeonUtils.deepEquals(this.body, other.body) && MessagesPigeonUtils.deepEquals(this.channelId, other.channelId) && MessagesPigeonUtils.deepEquals(this.data, other.data) && MessagesPigeonUtils.deepEquals(this.imageUrl, other.imageUrl) && MessagesPigeonUtils.deepEquals(this.imageStyle, other.imageStyle) && MessagesPigeonUtils.deepEquals(this.badge, other.badge) && MessagesPigeonUtils.deepEquals(this.extras, other.extras) && MessagesPigeonUtils.deepEquals(this.groupKey, other.groupKey) && MessagesPigeonUtils.deepEquals(this.actions, other.actions)
   }
 
   override fun hashCode(): Int {
@@ -276,10 +331,12 @@ data class NotificationContent (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.imageStyle)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.badge)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.extras)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.groupKey)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.actions)
     return result
   }
   override fun toString(): String {
-    return "NotificationContent(id=$id, title=$title, body=$body, channelId=$channelId, data=$data, imageUrl=$imageUrl, imageStyle=$imageStyle, badge=$badge, extras=$extras)"
+    return "NotificationContent(id=$id, title=$title, body=$body, channelId=$channelId, data=$data, imageUrl=$imageUrl, imageStyle=$imageStyle, badge=$badge, extras=$extras, groupKey=$groupKey, actions=$actions)"
   }
 }
 
@@ -426,15 +483,20 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       130.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          NotificationContent.fromList(it)
+          NotificationAction.fromList(it)
         }
       }
       131.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ChannelConfig.fromList(it)
+          NotificationContent.fromList(it)
         }
       }
       132.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          ChannelConfig.fromList(it)
+        }
+      }
+      133.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           BackgroundConfigMsg.fromList(it)
         }
@@ -448,16 +510,20 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is NotificationContent -> {
+      is NotificationAction -> {
         stream.write(130)
         writeValue(stream, value.toList())
       }
-      is ChannelConfig -> {
+      is NotificationContent -> {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is BackgroundConfigMsg -> {
+      is ChannelConfig -> {
         stream.write(132)
+        writeValue(stream, value.toList())
+      }
+      is BackgroundConfigMsg -> {
+        stream.write(133)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -777,6 +843,29 @@ class PushFlutterApi(private val binaryMessenger: BinaryMessenger, private val m
       val channelName = "dev.flutter.pigeon.fl_push_notifications.PushFlutterApi.onNativeTap$separatedMessageChannelSuffix"
       val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
       channel.send(listOf(payloadArg, appWasActiveArg)) {
+        if (it is List<*>) {
+          if (it.size > 1) {
+            continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))
+          } else {
+            continuation.resume(Unit)
+          }
+        } else {
+          continuation.resumeWithException(MessagesPigeonUtils.createConnectionError(channelName))
+        } 
+      }
+    }
+  }
+  /**
+   * The user dismissed (swiped away) a notification posted by this plugin;
+   * [payload] is its tap payload.
+   */
+  suspend fun onNativeDismiss(payloadArg: String)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    return suspendCancellableCoroutine { continuation ->
+      val channelName = "dev.flutter.pigeon.fl_push_notifications.PushFlutterApi.onNativeDismiss$separatedMessageChannelSuffix"
+      val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+      channel.send(listOf(payloadArg)) {
         if (it is List<*>) {
           if (it.size > 1) {
             continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))

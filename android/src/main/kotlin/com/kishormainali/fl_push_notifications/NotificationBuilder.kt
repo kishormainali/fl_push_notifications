@@ -7,10 +7,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.util.Log
 
 enum class NotificationStyleKind { BIG_PICTURE, BIG_TEXT, PLAIN }
+
+/** A button: its id, label and the tap payload it delivers. */
+data class PlannedAction(val id: String, val title: String, val payload: String)
 
 /** Every decision the builder makes, separated from Android types for testing. */
 data class NotificationPlan(
@@ -25,6 +29,8 @@ data class NotificationPlan(
     val thumbnailLargeIcon: Boolean = false,
     /** BigPictureStyle.bigLargeIcon(null): the expanded view shows the picture once. */
     val clearBigLargeIcon: Boolean = false,
+    val groupKey: String? = null,
+    val actions: List<PlannedAction> = emptyList(),
 )
 
 object NotificationPlanner {
@@ -50,6 +56,10 @@ object NotificationPlanner {
             payload = payloadJson(content, channelId),
             thumbnailLargeIcon = style == NotificationStyleKind.BIG_PICTURE,
             clearBigLargeIcon = style == NotificationStyleKind.BIG_PICTURE,
+            groupKey = content.groupKey?.takeIf { it.isNotEmpty() },
+            actions = content.actions.map {
+                PlannedAction(it.id, it.title, payloadJson(content, channelId, it.id))
+            },
         )
     }
 
@@ -68,14 +78,15 @@ object NotificationPlanner {
      * `{"id","title","body","data","imageUrl","channelId"}`; `id` is
      * `extras["messageId"]` when present, else the notification id.
      */
-    fun payloadJson(content: NotificationContent, channelId: String): String {
+    fun payloadJson(content: NotificationContent, channelId: String, actionId: String? = null): String {
         val id = (content.extras["messageId"] as? String)?.takeIf { it.isNotEmpty() }
             ?: content.id.toString()
         val data = content.data.entries
             .filter { it.key != null }
             .joinToString(",", "{", "}") { "${quote(it.key)}:${quote(it.value)}" }
         return "{\"id\":${quote(id)},\"title\":${quote(content.title)},\"body\":${quote(content.body)}," +
-            "\"data\":$data,\"imageUrl\":${quote(content.imageUrl)},\"channelId\":${quote(channelId)}}"
+            "\"data\":$data,\"imageUrl\":${quote(content.imageUrl)},\"channelId\":${quote(channelId)}" +
+            (if (actionId != null) ",\"actionId\":${quote(actionId)}" else "") + "}"
     }
 
     private fun quote(s: String?): String {
@@ -195,13 +206,49 @@ object NotificationBuilder {
             NotificationStyleKind.BIG_TEXT -> b.setStyle(Notification.BigTextStyle().bigText(plan.body))
             NotificationStyleKind.PLAIN -> Unit
         }
-        contentIntent(context, plan)?.let { b.setContentIntent(it) }
+        contentIntent(context, plan.payload, plan.id)?.let { b.setContentIntent(it) }
+        plan.groupKey?.let { b.setGroup(it) }
+        for (a in plan.actions) {
+            // Distinct request code per (notification, button) so each keeps its payload.
+            val pi = contentIntent(context, a.payload, 31 * plan.id + a.id.hashCode()) ?: continue
+            val icon = Icon.createWithResource(context, SmallIconResolver.resolve(context))
+            b.addAction(Notification.Action.Builder(icon, a.title, pi).build())
+        }
+        b.setDeleteIntent(dismissIntent(context, plan.payload, plan.id))
         return b.build()
     }
 
-    private fun contentIntent(context: Context, plan: NotificationPlan): PendingIntent? {
+    /** Id of the summary notification of group [key]. */
+    fun summaryId(key: String): Int = ("fl_group_$key").hashCode()
+
+    /** The collapsed summary that Android requires for a group to bundle. */
+    fun buildSummary(context: Context, channelId: String, groupKey: String): Notification {
+        val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(context)
+        }
+        return b.setSmallIcon(SmallIconResolver.resolve(context))
+            .setGroup(groupKey)
+            .setGroupSummary(true)
+            .setAutoCancel(true)
+            .build()
+    }
+
+    private fun dismissIntent(context: Context, payload: String, requestCode: Int): PendingIntent {
+        val i = Intent(context, DismissReceiver::class.java).putExtra(PAYLOAD_EXTRA, payload)
+        return PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            i,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
+    private fun contentIntent(context: Context, payload: String, requestCode: Int): PendingIntent? {
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
-        launch.putExtra(PAYLOAD_EXTRA, plan.payload)
+        launch.putExtra(PAYLOAD_EXTRA, payload)
         // CLEAR_TOP + SINGLE_TOP delivers onNewIntent to a running activity.
         launch.addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
@@ -209,7 +256,7 @@ object NotificationBuilder {
         // Per-notification request code so each keeps its own payload.
         return PendingIntent.getActivity(
             context,
-            plan.id,
+            requestCode,
             launch,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )

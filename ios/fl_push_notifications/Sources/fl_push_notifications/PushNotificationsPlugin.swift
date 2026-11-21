@@ -11,6 +11,8 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
   private static var tapHandlerRegistered = false
   /// Foreground flag captured for native taps; observers are added once.
   private static var appActive: AppActiveTracker?
+  /// Sends a dismissal to the engine that registered last; nil before registration.
+  private static var dismissDeliverer: ((String) -> Void)?
   private static var appStateObservers: [NSObjectProtocol] = []
 
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -26,6 +28,13 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
       // calls consumeLaunchPayload), not to the first engine registered.
       deliverTap: Self.deliverer(flutterApi))
     PushHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api)
+    Self.dismissDeliverer = { payload in
+      Task { @MainActor in
+        do { try await flutterApi.onNativeDismiss(payload: payload) } catch {
+          NSLog("fl_push_notifications: onNativeDismiss not delivered: \(error)")
+        }
+      }
+    }
     registrar.publish(PushNotificationsPlugin())
 
     if !tapHandlerRegistered {
@@ -89,7 +98,18 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
   ) {
     let userInfo = response.notification.request.content.userInfo
     guard let payload = userInfo[NotificationBuilder.payloadKey] as? String else { return }
-    if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+    if response.actionIdentifier == UNNotificationDismissActionIdentifier {
+      // Reported live only: a dismissal is not worth queueing for the next launch.
+      Self.dismissDeliverer?(payload)
+    } else if response.actionIdentifier != UNNotificationDefaultActionIdentifier {
+      let active =
+        Self.appActive?.isActive ?? (UIApplication.shared.applicationState == .active)
+      TapRouter.shared.handleTap(
+        NativeTap(
+          payload: NotificationCategories.payloadWithAction(
+            payload, actionId: response.actionIdentifier),
+          appWasActive: active))
+    } else {
       // Captured synchronously at the receive point (main thread). Not
       // `applicationState == .active`: a foreground app is `.inactive` while
       // Notification Center is pulled down, like an app being brought back

@@ -15,6 +15,8 @@ class NotificationPresenter<I : Any>(
     private val build: (NotificationContent, I?) -> Notification,
     private val canPost: () -> Boolean,
     private val notifier: (id: Int, notification: Notification) -> Unit,
+    /** Builds the group summary for a notification with a group key. */
+    private val summary: (NotificationContent) -> Pair<Int, Notification>? = { null },
 ) {
     suspend fun show(content: NotificationContent) {
         if (!canPost()) {
@@ -54,6 +56,9 @@ class NotificationPresenter<I : Any>(
         try {
             // Same id replaces the existing notification instead of stacking.
             notifier(content.id.toInt(), notification)
+            if (!content.groupKey.isNullOrEmpty()) {
+                summary(content)?.let { (id, n) -> notifier(id, n) }
+            }
         } catch (e: SecurityException) {
             Log.w(TAG, "notify denied: $e")
         }

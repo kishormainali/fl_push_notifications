@@ -37,6 +37,8 @@ NotificationContent buildNativeContent({
   /// Android `setNumber`, which launchers sum across notifications, so the
   /// background handler passes it on iOS only); null leaves it unchanged.
   int? badge,
+  String? groupKey,
+  List<NotificationAction> actions = const [],
 }) {
   final hasImage = imageUrl != null && imageUrl.isNotEmpty;
   return NotificationContent(
@@ -48,6 +50,8 @@ NotificationContent buildNativeContent({
     imageUrl: hasImage ? imageUrl : null,
     imageStyle: hasImage ? ImageStyle.bigPicture : ImageStyle.none,
     badge: badge,
+    groupKey: groupKey,
+    actions: actions,
     // Native tap payload uses this as its `id` so taps dedupe by messageId.
     extras: messageId != null ? {'messageId': messageId} : const {},
   );

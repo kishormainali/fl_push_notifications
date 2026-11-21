@@ -1,5 +1,11 @@
 ## Unreleased
 
+* New: `PushNotifications.show(PushNotification)` posts a notification from app
+  code, with optional `groupKey` and `PushAction` buttons. A button press is
+  delivered to the `decisionMaker` with `PushMessage.actionId`. New
+  `onDismiss` stream reports dismissed plugin-posted notifications while the app
+  process is running. Pigeon: `NotificationContent` gains `groupKey` and
+  `actions`, `PushFlutterApi` gains `onNativeDismiss`.
 * Faster `init`: channel creation, local notification setup and saving the
   background config now run concurrently.
 * Fix (Android): a foreground notification that used `title_loc_key` /

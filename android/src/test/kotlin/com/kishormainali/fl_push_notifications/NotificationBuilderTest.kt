@@ -18,6 +18,8 @@ private fun content(
     style: ImageStyle = ImageStyle.NONE,
     extras: Map<String?, Any?> = emptyMap(),
     body: String? = "B",
+    groupKey: String? = null,
+    actions: List<NotificationAction> = emptyList(),
 ) = NotificationContent(
     id = id,
     title = "T",
@@ -28,6 +30,8 @@ private fun content(
     imageStyle = style,
     badge = badge,
     extras = extras,
+    groupKey = groupKey,
+    actions = actions,
 )
 
 private fun cfg(httpsOnly: Boolean = true, defaultChannel: String = "default") =
@@ -43,6 +47,28 @@ class NotificationPlannerTest {
         assertEquals(NotificationStyleKind.BIG_PICTURE, plan(content(), hasBitmap = true).style)
         assertEquals(NotificationStyleKind.BIG_TEXT, plan(content()).style)
         assertEquals(NotificationStyleKind.PLAIN, plan(content(body = null)).style)
+    }
+
+    @Test
+    fun `actions get their own payload with the action id`() {
+        val p = plan(
+            content(
+                extras = mapOf("messageId" to "m1"),
+                groupKey = "chat",
+                actions = listOf(NotificationAction("reply", "Reply")),
+            ),
+        )
+        assertEquals("chat", p.groupKey)
+        val a = p.actions.single()
+        assertEquals("reply", a.id)
+        assertTrue(a.payload.contains("\"id\":\"m1\""))
+        assertTrue(a.payload.contains("\"actionId\":\"reply\""))
+        assertFalse(p.payload.contains("actionId"))
+    }
+
+    @Test
+    fun `an empty group key is no group`() {
+        assertEquals(null, plan(content(groupKey = "")).groupKey)
     }
 
     @Test

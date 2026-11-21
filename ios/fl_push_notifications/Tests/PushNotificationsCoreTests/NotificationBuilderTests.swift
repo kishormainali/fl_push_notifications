@@ -138,3 +138,40 @@ final class NotificationBuilderTests: XCTestCase {
     try? FileManager.default.removeItem(at: copy)
   }
 }
+
+final class NotificationCategoriesTests: XCTestCase {
+  func testNoActionsUsesDefaultCategory() {
+    XCTAssertEqual(NotificationCategories.identifier(for: []), NotificationCategories.defaultIdentifier)
+  }
+
+  func testIdentifierIsStableAndDependsOnActions() {
+    let a = [NotificationActionSpec(id: "reply", title: "Reply")]
+    let b = [NotificationActionSpec(id: "reply", title: "Answer")]
+    XCTAssertEqual(NotificationCategories.identifier(for: a), NotificationCategories.identifier(for: a))
+    XCTAssertNotEqual(NotificationCategories.identifier(for: a), NotificationCategories.identifier(for: b))
+  }
+
+  func testCategoryReportsDismissAndHasForegroundActions() {
+    let c = NotificationCategories.category(for: [NotificationActionSpec(id: "x", title: "X")])
+    XCTAssertTrue(c.options.contains(.customDismissAction))
+    XCTAssertEqual(c.actions.map(\.identifier), ["x"])
+    XCTAssertTrue(c.actions[0].options.contains(.foreground))
+  }
+
+  func testPayloadWithActionAddsActionId() {
+    let out = NotificationCategories.payloadWithAction("{\"id\":\"m1\"}", actionId: "reply")
+    let obj = try? JSONSerialization.jsonObject(with: Data(out.utf8)) as? [String: Any]
+    XCTAssertEqual(obj?["actionId"] as? String, "reply")
+    XCTAssertEqual(obj?["id"] as? String, "m1")
+  }
+
+  func testGroupKeyBecomesThreadIdentifier() {
+    let s = NotificationSpec(
+      id: 1, title: "t", body: "b", channelId: "chat", data: [:], imageUrl: nil, badge: nil,
+      messageId: "m", imageFile: nil, groupKey: "g1",
+      actions: [NotificationActionSpec(id: "a", title: "A")])
+    let c = NotificationBuilder.build(s)
+    XCTAssertEqual(c.threadIdentifier, "g1")
+    XCTAssertEqual(c.categoryIdentifier, NotificationCategories.identifier(for: s.actions))
+  }
+}

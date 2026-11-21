@@ -193,6 +193,48 @@ enum ImageStyle: Int, CaseIterable {
   case bigPicture = 1
 }
 
+/// A button on a notification. Pressing it opens the app and reports [id].
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct NotificationAction: Hashable, CustomStringConvertible {
+  var id: String
+  var title: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> NotificationAction? {
+    let id = pigeonVar_list[0] as! String
+    let title = pigeonVar_list[1] as! String
+
+    return NotificationAction(
+      id: id,
+      title: title
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      title,
+    ]
+  }
+  static func == (lhs: NotificationAction, rhs: NotificationAction) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.id, rhs.id) && MessagesPigeonInternal.deepEquals(lhs.title, rhs.title)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("NotificationAction")
+    MessagesPigeonInternal.deepHash(value: id, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: title, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "NotificationAction(id: \(String(describing: id)), title: \(String(describing: title)))"
+  }
+}
+
 /// Generated class from Pigeon that represents data sent in messages.
 struct NotificationContent: Hashable, CustomStringConvertible {
   var id: Int64
@@ -204,6 +246,10 @@ struct NotificationContent: Hashable, CustomStringConvertible {
   var imageStyle: ImageStyle
   var badge: Int64? = nil
   var extras: [String?: Any?]
+  /// Notifications with the same key are grouped (Android group + summary,
+  /// iOS thread identifier).
+  var groupKey: String? = nil
+  var actions: [NotificationAction]
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -217,6 +263,8 @@ struct NotificationContent: Hashable, CustomStringConvertible {
     let imageStyle = pigeonVar_list[6] as! ImageStyle
     let badge: Int64? = nilOrValue(pigeonVar_list[7])
     let extras = pigeonVar_list[8] as! [String?: Any?]
+    let groupKey: String? = nilOrValue(pigeonVar_list[9])
+    let actions = pigeonVar_list[10] as! [NotificationAction]
 
     return NotificationContent(
       id: id,
@@ -227,7 +275,9 @@ struct NotificationContent: Hashable, CustomStringConvertible {
       imageUrl: imageUrl,
       imageStyle: imageStyle,
       badge: badge,
-      extras: extras
+      extras: extras,
+      groupKey: groupKey,
+      actions: actions
     )
   }
   func toList() -> [Any?] {
@@ -241,13 +291,15 @@ struct NotificationContent: Hashable, CustomStringConvertible {
       imageStyle,
       badge,
       extras,
+      groupKey,
+      actions,
     ]
   }
   static func == (lhs: NotificationContent, rhs: NotificationContent) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.id, rhs.id) && MessagesPigeonInternal.deepEquals(lhs.title, rhs.title) && MessagesPigeonInternal.deepEquals(lhs.body, rhs.body) && MessagesPigeonInternal.deepEquals(lhs.channelId, rhs.channelId) && MessagesPigeonInternal.deepEquals(lhs.data, rhs.data) && MessagesPigeonInternal.deepEquals(lhs.imageUrl, rhs.imageUrl) && MessagesPigeonInternal.deepEquals(lhs.imageStyle, rhs.imageStyle) && MessagesPigeonInternal.deepEquals(lhs.badge, rhs.badge) && MessagesPigeonInternal.deepEquals(lhs.extras, rhs.extras)
+    return MessagesPigeonInternal.deepEquals(lhs.id, rhs.id) && MessagesPigeonInternal.deepEquals(lhs.title, rhs.title) && MessagesPigeonInternal.deepEquals(lhs.body, rhs.body) && MessagesPigeonInternal.deepEquals(lhs.channelId, rhs.channelId) && MessagesPigeonInternal.deepEquals(lhs.data, rhs.data) && MessagesPigeonInternal.deepEquals(lhs.imageUrl, rhs.imageUrl) && MessagesPigeonInternal.deepEquals(lhs.imageStyle, rhs.imageStyle) && MessagesPigeonInternal.deepEquals(lhs.badge, rhs.badge) && MessagesPigeonInternal.deepEquals(lhs.extras, rhs.extras) && MessagesPigeonInternal.deepEquals(lhs.groupKey, rhs.groupKey) && MessagesPigeonInternal.deepEquals(lhs.actions, rhs.actions)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -261,10 +313,12 @@ struct NotificationContent: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: imageStyle, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: badge, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: extras, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: groupKey, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: actions, hasher: &hasher)
   }
 
   public var description: String {
-    return "NotificationContent(id: \(String(describing: id)), title: \(String(describing: title)), body: \(String(describing: body)), channelId: \(String(describing: channelId)), data: \(String(describing: data)), imageUrl: \(String(describing: imageUrl)), imageStyle: \(String(describing: imageStyle)), badge: \(String(describing: badge)), extras: \(String(describing: extras)))"
+    return "NotificationContent(id: \(String(describing: id)), title: \(String(describing: title)), body: \(String(describing: body)), channelId: \(String(describing: channelId)), data: \(String(describing: data)), imageUrl: \(String(describing: imageUrl)), imageStyle: \(String(describing: imageStyle)), badge: \(String(describing: badge)), extras: \(String(describing: extras)), groupKey: \(String(describing: groupKey)), actions: \(String(describing: actions)))"
   }
 }
 
@@ -423,10 +477,12 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 130:
-      return NotificationContent.fromList(self.readValue() as! [Any?])
+      return NotificationAction.fromList(self.readValue() as! [Any?])
     case 131:
-      return ChannelConfig.fromList(self.readValue() as! [Any?])
+      return NotificationContent.fromList(self.readValue() as! [Any?])
     case 132:
+      return ChannelConfig.fromList(self.readValue() as! [Any?])
+    case 133:
       return BackgroundConfigMsg.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -439,14 +495,17 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? ImageStyle {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? NotificationContent {
+    } else if let value = value as? NotificationAction {
       super.writeByte(130)
       super.writeValue(value.toList())
-    } else if let value = value as? ChannelConfig {
+    } else if let value = value as? NotificationContent {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? BackgroundConfigMsg {
+    } else if let value = value as? ChannelConfig {
       super.writeByte(132)
+      super.writeValue(value.toList())
+    } else if let value = value as? BackgroundConfigMsg {
+      super.writeByte(133)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -728,6 +787,9 @@ protocol PushFlutterApiProtocol {
   /// app's state captured natively when the tap was received (it labels
   /// `PushMessage.appState`; Dart's lifecycle may have changed since).
   @MainActor func onNativeTap(payload payloadArg: String, appWasActive appWasActiveArg: Bool) async throws
+  /// The user dismissed (swiped away) a notification posted by this plugin;
+  /// [payload] is its tap payload.
+  @MainActor func onNativeDismiss(payload payloadArg: String) async throws
 }
 class PushFlutterApi: PushFlutterApiProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -747,6 +809,28 @@ class PushFlutterApi: PushFlutterApiProtocol {
       let channelName: String = "dev.flutter.pigeon.fl_push_notifications.PushFlutterApi.onNativeTap\(messageChannelSuffix)"
       let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
       channel.sendMessage([payloadArg, appWasActiveArg] as [Any?]) { response in
+        guard let listResponse = response as? [Any?] else {
+          continuation.resume(throwing: createConnectionError(withChannelName: channelName))
+          return
+        }
+        if listResponse.count > 1 {
+          let code: String = listResponse[0] as! String
+          let message: String? = nilOrValue(listResponse[1])
+          let details: String? = nilOrValue(listResponse[2])
+          continuation.resume(throwing: PigeonError(code: code, message: message, details: details))
+        } else {
+          continuation.resume()
+        }
+      }
+    }
+  }
+  /// The user dismissed (swiped away) a notification posted by this plugin;
+  /// [payload] is its tap payload.
+  @MainActor func onNativeDismiss(payload payloadArg: String) async throws {
+    return try await withCheckedThrowingContinuation { continuation in
+      let channelName: String = "dev.flutter.pigeon.fl_push_notifications.PushFlutterApi.onNativeDismiss\(messageChannelSuffix)"
+      let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+      channel.sendMessage([payloadArg] as [Any?]) { response in
         guard let listResponse = response as? [Any?] else {
           continuation.resume(throwing: createConnectionError(withChannelName: channelName))
           return

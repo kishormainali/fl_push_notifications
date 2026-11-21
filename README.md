@@ -597,23 +597,49 @@ has its own downloader: https-only, JPEG/PNG/GIF only (sniffed from content),
 - The page says the iOS Simulator does not display notification images. Test
   image notifications on a physical device.
 
-### Localized titles and bodies (known gap)
+### Localized titles and bodies
 
 The Firebase page shows localization keys in the payload: `title_loc_key` /
-`body_loc_key` (Android) and `title-loc-key` / `loc-key` (APNs). This plugin does
-not resolve them. `PushMessage.title` and `body` come from `notification.title` /
-`notification.body`, falling back to the `data` keys (`titleKey` / `bodyKey`). Consequences:
+`body_loc_key` (Android) and `title-loc-key` / `loc-key` (APNs).
 
-- A notification message that has only localization keys still gets displayed by
-  the OS when the app is in the background or terminated (the OS or FCM SDK
-  resolves the keys), but its `PushMessage.title` / `body` can be `null` on tap.
-- In the Android foreground, such a message has no `title` or `body`, so the
-  plugin shows nothing for it.
+- In the background or terminated, the OS or FCM SDK resolves the keys and shows
+  the notification.
+- In the foreground, and for the `PushMessage` of a tap, the plugin resolves
+  the keys itself from your Android string resources (`res/values/strings.xml`,
+  with the key as the resource name) or iOS `Localizable.strings`, and formats
+  the `*_loc_args` into them. A key the app has no string for leaves the title
+  or body `null`.
 - Data-only messages are displayed from `data[titleKey]` / `data[bodyKey]`; the
   plugin never localizes them. Send resolved text, or ship the localized
   strings yourself.
 
-Tracked as a known gap in [the manual checklist](doc/MANUAL_TEST_CHECKLIST.md).
+## Posting notifications yourself
+
+```dart
+final id = await PushNotifications.instance.show(
+  PushNotification(
+    id: 'order-42',               // same id replaces the notification
+    title: 'Order shipped',
+    body: 'Arrives tomorrow',
+    data: {'orderId': '42'},
+    groupKey: 'orders',           // grouped together in the notification list
+    actions: [PushAction(id: 'track', title: 'Track')],
+  ),
+);
+
+PushNotifications.instance.onDismiss.listen((m) => print('dismissed ${m.id}'));
+```
+
+- **Taps and buttons** arrive at your `decisionMaker` like any other tap. A
+  button press has `PushMessage.actionId` set; a tap on the body has it `null`.
+  Buttons open the app; they do not run Dart code while the app is closed.
+- **Grouping**: Android groups by the key and posts a summary notification; iOS
+  uses it as the thread identifier.
+- **Dismissals** are reported on `onDismiss` only while the app process is
+  running. On iOS this works for notifications posted through `show` (and the
+  plugin's data-only messages); notifications presented by the OS from a
+  `notification` block are not reported.
+- Call `show` after `init`. A notification needs a title or a body.
 
 ## Server payload examples
 

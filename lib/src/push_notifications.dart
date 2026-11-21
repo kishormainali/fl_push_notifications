@@ -14,6 +14,7 @@ import 'messages.g.dart';
 import 'ports.dart';
 import 'ports_impl.dart';
 import 'push_message.dart';
+import 'show.dart';
 import 'tap_dispatcher.dart';
 
 /// Result of [PushNotifications.requestPermission].
@@ -244,7 +245,7 @@ class PushNotifications {
     // launch taps, e.g. Android before consumeLaunchPayload replies; hold it
     // until they are delivered.
     _heldNativeTaps = [];
-    _registerFlutterApi(_NativeTapHandler(_onNativeTap));
+    _registerFlutterApi(_NativeTapHandler(_onNativeTap, _onNativeDismiss));
 
     try {
       if (_badge.autoClearOnForeground) {
@@ -594,6 +595,50 @@ class PushNotifications {
     );
   }
 
+  /// Posts a notification from app code and returns its message id.
+  ///
+  /// Call after [init]. Taps and button presses arrive at the `decisionMaker`
+  /// like any other tap, with `PushMessage.actionId` set for a button. The
+  /// notification is not shown (and an [ArgumentError] is thrown) when it has
+  /// neither a title nor a body.
+  Future<String> show(PushNotification n) async {
+    if ((n.title ?? '').isEmpty && (n.body ?? '').isEmpty) {
+      throw ArgumentError('a notification needs a title or a body');
+    }
+    final id = (n.id == null || n.id!.isEmpty) ? generateMessageId() : n.id!;
+    final requested = n.channelId;
+    final channelId = (requested != null && _channelIds.contains(requested))
+        ? requested
+        : _defaultChannelId;
+    await _host.showNotification(
+      buildNativeContent(
+        messageId: id,
+        title: n.title,
+        body: n.body,
+        channelId: channelId,
+        data: n.data,
+        imageUrl: n.imageUrl,
+        groupKey: n.groupKey,
+        actions: [
+          for (final a in n.actions)
+            NotificationAction(id: a.id, title: a.title),
+        ],
+      ),
+    );
+    return id;
+  }
+
+  /// Notifications posted by this plugin that the user dismissed (swiped
+  /// away), while the app process was running. Dismissals that happen while
+  /// the app is not running are not reported.
+  Stream<PushMessage> get onDismiss => _dismissed.stream;
+
+  final StreamController<PushMessage> _dismissed =
+      StreamController<PushMessage>.broadcast();
+
+  void _onNativeDismiss(String payload) =>
+      _dismissed.add(_fromPayload(payload, _liveTapState()));
+
   PushMessage _fromPayload(String payload, PushAppState state) =>
       PushMessage.fromLocalPayload(
         payload,
@@ -790,8 +835,11 @@ class PushNotifications {
 }
 
 class _NativeTapHandler implements PushFlutterApi {
-  _NativeTapHandler(this._onTap);
+  _NativeTapHandler(this._onTap, this._onDismiss);
   final void Function(String payload, bool appWasActive) _onTap;
+  final void Function(String payload) _onDismiss;
+  @override
+  void onNativeDismiss(String payload) => _onDismiss(payload);
   @override
   void onNativeTap(String payload, bool appWasActive) =>
       _onTap(payload, appWasActive);

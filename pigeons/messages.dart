@@ -12,6 +12,14 @@ import 'package:pigeon/pigeon.dart';
 )
 enum ImageStyle { none, bigPicture }
 
+/// A button on a notification. Pressing it opens the app and reports [id].
+class NotificationAction {
+  NotificationAction({required this.id, required this.title});
+
+  String id;
+  String title;
+}
+
 class NotificationContent {
   NotificationContent({
     required this.id,
@@ -23,6 +31,8 @@ class NotificationContent {
     required this.imageStyle,
     this.badge,
     required this.extras,
+    this.groupKey,
+    required this.actions,
   });
 
   int id;
@@ -34,6 +44,11 @@ class NotificationContent {
   ImageStyle imageStyle;
   int? badge;
   Map<String?, Object?> extras;
+
+  /// Notifications with the same key are grouped (Android group + summary,
+  /// iOS thread identifier).
+  String? groupKey;
+  List<NotificationAction> actions;
 }
 
 class ChannelConfig {
@@ -118,4 +133,8 @@ abstract class PushFlutterApi {
   /// app's state captured natively when the tap was received (it labels
   /// `PushMessage.appState`; Dart's lifecycle may have changed since).
   void onNativeTap(String payload, bool appWasActive);
+
+  /// The user dismissed (swiped away) a notification posted by this plugin;
+  /// [payload] is its tap payload.
+  void onNativeDismiss(String payload);
 }

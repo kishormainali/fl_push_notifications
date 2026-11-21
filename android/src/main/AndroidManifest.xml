@@ -16,6 +16,10 @@
   <uses-permission android:name="com.oppo.launcher.permission.READ_SETTINGS" />
   <uses-permission android:name="com.oppo.launcher.permission.WRITE_SETTINGS" />
 
+  <application>
+    <receiver android:name="com.kishormainali.fl_push_notifications.DismissReceiver" android:exported="false" />
+  </application>
+
   <!-- Needed on Android 11+ to resolve the default home launcher. -->
   <queries>
     <intent>

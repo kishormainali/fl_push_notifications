@@ -59,9 +59,11 @@ final class PushHostApiImpl: PushHostApi {
       file = await downloader.download(
         url: url, timeout: Self.imageTimeout, maxBytes: Self.imageMaxBytes, httpsOnly: httpsOnly)
     }
+    let spec = Self.spec(content, imageFile: file)
+    await NotificationCategories.register(for: spec.actions)
     let request = UNNotificationRequest(
       identifier: NotificationBuilder.requestIdentifier(for: content.id),
-      content: NotificationBuilder.build(Self.spec(content, imageFile: file)),
+      content: NotificationBuilder.build(spec),
       trigger: nil)
     do {
       // Removes the temp attachment copy when the add fails.
@@ -86,6 +88,7 @@ final class PushHostApiImpl: PushHostApi {
     return NotificationSpec(
       id: c.id, title: c.title, body: c.body, channelId: c.channelId, data: data,
       imageUrl: c.imageUrl, badge: c.badge.map { Int(clamping: $0) }, messageId: messageId,
-      imageFile: imageFile)
+      imageFile: imageFile, groupKey: c.groupKey,
+      actions: c.actions.map { NotificationActionSpec(id: $0.id, title: $0.title) })
   }
 }

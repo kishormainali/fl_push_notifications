@@ -8,6 +8,7 @@ import 'package:fl_push_notifications/src/config.dart';
 import 'package:fl_push_notifications/src/messages.g.dart';
 import 'package:fl_push_notifications/src/push_message.dart';
 import 'package:fl_push_notifications/src/push_notifications.dart';
+import 'package:fl_push_notifications/src/show.dart';
 
 import 'fakes.dart';
 
@@ -352,6 +353,68 @@ void main() {
     expect(local.shown, hasLength(1));
     expect(local.shown.single.$2, greaterThanOrEqualTo(0));
     expect(emitted.single.appState, PushAppState.foreground);
+  });
+
+  group('show, actions and dismiss', () {
+    test('show posts native content with group and actions', () async {
+      final p = await started();
+      final id = await p.show(
+        const PushNotification(
+          id: 'm1',
+          title: 'Hi',
+          body: 'There',
+          data: {'k': 'v'},
+          groupKey: 'chat',
+          actions: [PushAction(id: 'reply', title: 'Reply')],
+        ),
+      );
+      expect(id, 'm1');
+      final c = host.shownNotifications.single;
+      expect(c.title, 'Hi');
+      expect(c.groupKey, 'chat');
+      expect(c.actions.single.id, 'reply');
+      expect(c.extras['messageId'], 'm1');
+      expect(c.channelId, 'default');
+    });
+
+    test(
+      'show generates an id and falls back to the default channel',
+      () async {
+        final p = await started();
+        final id = await p.show(
+          const PushNotification(body: 'b', channelId: 'nope'),
+        );
+        expect(id, isNotEmpty);
+        expect(host.shownNotifications.single.channelId, 'default');
+      },
+    );
+
+    test('show without title and body throws and posts nothing', () async {
+      final p = await started();
+      expect(() => p.show(const PushNotification()), throwsArgumentError);
+      expect(host.shownNotifications, isEmpty);
+    });
+
+    test('a button press arrives with its actionId and is not deduped '
+        'against the body tap', () async {
+      await started();
+      nativeApi!.onNativeTap('{"id":"m2","actionId":"reply"}', false);
+      nativeApi!.onNativeTap('{"id":"m2"}', false);
+      nativeApi!.onNativeTap('{"id":"m2","actionId":"reply"}', false);
+      await pump();
+      expect(taps.map((t) => t.actionId), ['reply', null]);
+      expect(taps.every((t) => t.id == 'm2'), isTrue);
+    });
+
+    test('onDismiss emits the dismissed message', () async {
+      final p = await started();
+      final dismissed = <PushMessage>[];
+      p.onDismiss.listen(dismissed.add);
+      nativeApi!.onNativeDismiss('{"id":"m3","title":"T"}');
+      await pump();
+      expect(dismissed.single.id, 'm3');
+      expect(dismissed.single.title, 'T');
+    });
   });
 
   group('foreground localized text', () {
