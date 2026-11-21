@@ -9,8 +9,30 @@ import 'package:fl_push_notifications/src/push_message.dart';
 
 class FakeMessagingPort implements MessagingPort {
   RemoteMessage? initial;
-  final onMessageCtl = StreamController<RemoteMessage>.broadcast();
-  final openedCtl = StreamController<RemoteMessage>.broadcast();
+  late final onMessageCtl = StreamController<RemoteMessage>.broadcast(
+    onListen: touch,
+  );
+  late final openedCtl = StreamController<RemoteMessage>.broadcast(
+    onListen: touch,
+  );
+
+  /// Native `onMessageOpenedApp` events sent before Dart installed the
+  /// firebase_messaging channel handler. Like the real plugin, the first use
+  /// of messaging (or the first listen) installs it and replays them into the
+  /// broadcast stream, where they are lost if nobody listens yet.
+  final bufferedOpened = <RemoteMessage>[];
+  bool handlerInstalled = false;
+
+  void touch() {
+    if (handlerInstalled) return;
+    handlerInstalled = true;
+    final replay = [...bufferedOpened];
+    bufferedOpened.clear();
+    // Delivered asynchronously, before the first host round trip completes
+    // (the real replay precedes the replies of later channel calls).
+    scheduleMicrotask(() => replay.forEach(openedCtl.add));
+  }
+
   late final tokenCtl = StreamController<String>.broadcast(
     onListen: () => tokenListens++,
     onCancel: () => tokenCancels++,
@@ -34,6 +56,7 @@ class FakeMessagingPort implements MessagingPort {
 
   @override
   Future<RemoteMessage?> getInitialMessage() async {
+    touch();
     initialCalls++;
     return initial;
   }
@@ -104,6 +127,7 @@ class FakeMessagingPort implements MessagingPort {
     required bool badge,
     required bool sound,
   }) async {
+    touch();
     presentationAlert = alert;
   }
 
@@ -112,8 +136,10 @@ class FakeMessagingPort implements MessagingPort {
   @override
   Future<void> unsubscribeFromTopic(String t) async {}
   @override
-  void setBackgroundHandler(BackgroundMessageHandler handler) =>
-      backgroundHandler = handler;
+  void setBackgroundHandler(BackgroundMessageHandler handler) {
+    touch();
+    backgroundHandler = handler;
+  }
 }
 
 class FakeLocalPort implements LocalPort {

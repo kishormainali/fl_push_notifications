@@ -21,6 +21,20 @@ void main() {
     expect(m.appState, PushAppState.terminated);
   });
 
+  test('fromRemote reads the iOS image (fcm_options.image)', () {
+    final m = PushMessage.fromRemote(
+      const RemoteMessage(
+        messageId: 'x',
+        notification: RemoteNotification(
+          title: 't',
+          apple: AppleNotification(imageUrl: 'https://e.x/i.png'),
+        ),
+      ),
+      PushAppState.terminated,
+    );
+    expect(m.imageUrl, 'https://e.x/i.png');
+  });
+
   test('fromRemote generates an id when messageId is null', () {
     final a = PushMessage.fromRemote(
       const RemoteMessage(),

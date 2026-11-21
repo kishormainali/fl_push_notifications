@@ -101,6 +101,13 @@ class PushNotifications {
   /// during that window.
   List<(String, bool)>? _heldNativeTaps;
 
+  /// `onMessageOpenedApp` messages that arrive before init has delivered the
+  /// launch taps. firebase_messaging reports a cold-start tap this way, not
+  /// via `getInitialMessage`, when it did not see the UIScene connection
+  /// options (e.g. a scene delegate that does not forward to Flutter plugins),
+  /// so they are delivered as launch taps. Non-null only during that window.
+  List<RemoteMessage>? _heldOpened;
+
   /// Initializes the plugin; call once after `Firebase.initializeApp()`.
   ///
   /// [decisionMaker] is called when the user taps a notification. [channels]
@@ -184,6 +191,17 @@ class PushNotifications {
       );
     }
     _dispatcher.decisionMaker = decisionMaker;
+    _heldOpened = [];
+    // Subscribed before anything touches FirebaseMessaging.instance (below:
+    // setForegroundPresentation, setBackgroundHandler, getInitialMessage).
+    // The first touch installs firebase_messaging's method channel handler,
+    // which immediately replays native events buffered since launch into
+    // broadcast streams; an `onMessageOpenedApp` for the tap that launched
+    // the app is dropped if nobody listens yet.
+    _subs.addAll([
+      _messaging.onMessage.listen(_onForegroundMessage),
+      _messaging.onMessageOpenedApp.listen(_onOpenedApp),
+    ]);
     _defaultChannelId = defaultChannelId;
     _channelKey = channelKey;
     _imageKey = imageKey;
@@ -229,13 +247,6 @@ class PushNotifications {
     _registerFlutterApi(_NativeTapHandler(_onNativeTap));
 
     try {
-      _subs.addAll([
-        _messaging.onMessage.listen(_onForegroundMessage),
-        _messaging.onMessageOpenedApp.listen(
-          (m) => _dispatcher.handleTap(_fromRemote(m, _liveTapState())),
-        ),
-      ]);
-
       if (_badge.autoClearOnForeground) {
         // The app is in the foreground while init runs, so clear once now; the
         // lifecycle listener above clears again every time it resumes.
@@ -250,8 +261,18 @@ class PushNotifications {
         unawaited(_registerSafely());
       }
     } finally {
+      _heldOpened = null;
       _releaseNativeTaps();
     }
+  }
+
+  void _onOpenedApp(RemoteMessage m) {
+    final held = _heldOpened;
+    if (held != null) {
+      held.add(m);
+      return;
+    }
+    unawaited(_dispatcher.handleTap(_fromRemote(m, _liveTapState())));
   }
 
   Future<void> _saveBackgroundConfig(
@@ -676,6 +697,13 @@ class PushNotifications {
     if (initial != null) {
       launch.add(_fromRemote(initial, PushAppState.terminated));
     }
+    // Opened-app messages seen so far arrived before Dart could subscribe
+    // normally: the app was launched by them. Same id as `initial` is
+    // dropped by the dispatcher's dedupe.
+    for (final m in _heldOpened ?? const <RemoteMessage>[]) {
+      launch.add(_fromRemote(m, PushAppState.terminated));
+    }
+    _heldOpened = null;
     final localPayload = await _local.launchPayload();
     if (localPayload != null) {
       launch.add(_fromPayload(localPayload, PushAppState.terminated));

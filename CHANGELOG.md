@@ -1,5 +1,12 @@
 ## Unreleased
 
+* Fix (iOS): a tap that launched the app could be lost when the scene delegate
+  did not forward the connection to Flutter plugins (firebase_messaging then
+  reports it as `onMessageOpenedApp` before Dart listens). `init` now
+  subscribes first and delivers such taps as terminated launch taps (deduped).
+  The iOS image URL now also reads `notification.apple.imageUrl`.
+* Docs: UIScene guidance (`FlutterSceneDelegate`, call `init` before other
+  `FirebaseMessaging` use, keep the notification center delegate line).
 * Dependencies: `firebase_messaging` ^17.1.0 (was ^17.0.1) and `firebase_core`
   ^5.2.0 (was ^5.1.0). `flutter_local_notifications` stays at ^23.0.0 and
   `pigeon` stays pinned at 29.1.1 (Pigeon 30 is a later item). The SDK floors

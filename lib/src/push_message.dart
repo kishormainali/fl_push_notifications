@@ -134,7 +134,10 @@ class PushMessage {
       title: _nonEmpty(m.notification?.title) ?? _nonEmpty(data[titleKey]),
       body: _nonEmpty(m.notification?.body) ?? _nonEmpty(data[bodyKey]),
       data: data,
-      imageUrl: m.notification?.android?.imageUrl ?? data[imageKey],
+      imageUrl:
+          m.notification?.android?.imageUrl ??
+          m.notification?.apple?.imageUrl ??
+          data[imageKey],
       channelId: channelId,
       source: MessageSource.remote,
       appState: state,

@@ -291,6 +291,35 @@ void main() {
     });
   });
 
+  group('cold-start tap reported as onMessageOpenedApp (iOS, scene '
+      'connection not forwarded to firebase_messaging)', () {
+    test('is delivered once as a terminated launch tap', () async {
+      msg.bufferedOpened.add(rm('cold', data: {'type': 'order'}));
+      await started(isIOS: true);
+      expect(taps.map((m) => m.id), ['cold']);
+      expect(taps.single.appState, PushAppState.terminated);
+      expect(taps.single.data, {'type': 'order'});
+      expect(host.lastLaunchId, 'cold');
+    });
+
+    test(
+      'same id also returned by getInitialMessage is delivered once',
+      () async {
+        msg.initial = rm('dup');
+        msg.bufferedOpened.add(rm('dup'));
+        await started(isIOS: true);
+        expect(taps.map((m) => m.id), ['dup']);
+      },
+    );
+
+    test('opened after init is a live tap', () async {
+      await started(isIOS: true);
+      msg.openedCtl.add(rm('live'));
+      await pump();
+      expect(taps.single.appState, PushAppState.foreground);
+    });
+  });
+
   test('native tap payload becomes a local tap', () async {
     await started();
     nativeApi!.onNativeTap('{"id":"n1","title":"hi"}', true);

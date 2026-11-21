@@ -333,18 +333,31 @@ desugaring, Swift Package Manager and the app delegate).
    }
    ```
 
-   **UIScene apps (placeholder).** The official Firebase get-started and
-   receive-messages pages do not cover UIScene / `SceneDelegate` apps. The
-   `FLTFirebaseMessagingPlugin configureNotificationCenterDelegate` method
-   (documented only in the firebase_messaging plugin's own header, not on the
-   Firebase pages) is under investigation in Phase 1 of this plugin's roadmap.
-   Until then, the `AppDelegate` guidance above is unchanged.
+   **UIScene apps.** Keep the line above; do not replace it with
+   `FLTFirebaseMessagingPlugin.configureNotificationCenterDelegate()`. That call
+   makes firebase_messaging the notification center delegate, and it forwards
+   only to a delegate that was set before it, so Flutter's app delegate (and
+   with it this plugin's and flutter_local_notifications' tap handling) would
+   no longer receive taps. Remote notification taps work with either setup.
 
-5. (this plugin) The plugin supports Swift Package Manager only (no CocoaPods). Enable it with
+5. (this plugin) Use a UIScene setup that forwards the scene connection to
+   plugins: the `SceneDelegate` must subclass `FlutterSceneDelegate` (as in the
+   example) and, if it overrides `scene(_:willConnectTo:options:)`, call
+   `super`. A plain `UIResponder, UIWindowSceneDelegate`, or an override that
+   skips `super`, hides the tapped notification
+   (`connectionOptions.notificationResponse`) from firebase_messaging: a tap
+   that launches the app then makes `getInitialMessage()` return `null` and
+   arrives as `onMessageOpenedApp` before Dart listens. `init` subscribes
+   before anything else touches firebase_messaging so it still gets such a
+   tap, but code that uses `FirebaseMessaging` before `init` (for example
+   `requestPermission()` or `getToken()` in `main`) makes firebase_messaging
+   replay and drop it first. Call `init` before any other `FirebaseMessaging`
+   call.
+6. (this plugin) The plugin supports Swift Package Manager only (no CocoaPods). Enable it with
    `flutter config --enable-swift-package-manager`.
-6. (this plugin) If you develop the plugin locally from source, the plugin folder must be
+7. (this plugin) If you develop the plugin locally from source, the plugin folder must be
    named `fl_push_notifications`, because SwiftPM keys on the folder name.
-7. On Apple platforms make sure the APNs token is available before calling FCM
+8. On Apple platforms make sure the APNs token is available before calling FCM
    plugin APIs (Firebase docs, iOS SDK 10.4.0+); see
    [Platform token](#platform-token-fcm-on-android-apns-on-ios).
 
