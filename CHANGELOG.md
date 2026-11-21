@@ -1,5 +1,7 @@
 ## Unreleased
 
+* Faster `init`: channel creation, local notification setup and saving the
+  background config now run concurrently.
 * Fix (Android): a foreground notification that used `title_loc_key` /
   `body_loc_key` instead of literal text was never shown. The plugin now
   resolves the keys from the app's string resources (iOS: `Localizable.strings`)
@@ -16,7 +18,7 @@
   `FirebaseMessaging` use, keep the notification center delegate line).
 * Dependencies: `firebase_messaging` ^17.1.0 (was ^17.0.1) and `firebase_core`
   ^5.2.0 (was ^5.1.0). `flutter_local_notifications` stays at ^23.0.0 and
-  `pigeon` stays pinned at 29.1.1 (Pigeon 30 is a later item). The SDK floors
+  `pigeon` is pinned at 30.0.4 (was 29.1.1; the generated code changes only in an enum lookup). The SDK floors
   are unchanged (Dart ^3.13.7, Flutter >=3.47.0).
 * Tested with Flutter 3.50.1 (latest stable); Flutter 3.47.x remains the
   supported floor and is checked by a separate CI job.

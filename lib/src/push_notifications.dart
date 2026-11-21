@@ -223,14 +223,15 @@ class PushNotifications {
       }),
     );
 
-    for (final c in list) {
-      await createChannel(c);
-    }
-
-    await _local.initialize(
-      onTap: _onLocalTap,
-      onBackgroundTap: pushLocalBackgroundTap,
-    );
+    // Independent platform round trips, overlapped to shorten init.
+    await Future.wait([
+      for (final c in list) createChannel(c),
+      _local.initialize(
+        onTap: _onLocalTap,
+        onBackgroundTap: pushLocalBackgroundTap,
+      ),
+      _saveBackgroundConfig(imageHttpsOnly, onBackgroundMessage),
+    ]);
     if (isIOS) {
       await _messaging.setForegroundPresentation(
         alert: true,
@@ -238,7 +239,6 @@ class PushNotifications {
         sound: true,
       );
     }
-    await _saveBackgroundConfig(imageHttpsOnly, onBackgroundMessage);
     _messaging.setBackgroundHandler(pushBackgroundHandler);
     // A native side may send a live tap before (or while) Dart reads the
     // launch taps, e.g. Android before consumeLaunchPayload replies; hold it
