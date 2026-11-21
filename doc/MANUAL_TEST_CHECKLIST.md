@@ -21,6 +21,13 @@ data, state and source, and "Recent taps" lists it.
       in the Firebase console (Cloud Messaging tab).
 - [ ] Android: device or emulator runs Android 7.0+ and has Google Play
       services (emulator image with Google APIs).
+- [ ] The app was opened at least once before testing background messages.
+      iOS: do not swipe the app away in the app switcher; Android: do not
+      force-stop it from settings (background messages do not arrive until the
+      app is reopened).
+- [ ] The `onBackgroundMessage` hook (if any) is top-level with
+      `@pragma('vm:entry-point')`, touches no UI or app state, and finishes in
+      well under 30 seconds.
 
 ## 1. State x message kind x image (repeat on Android and iOS)
 
@@ -48,6 +55,16 @@ resumes around the tap; it must still be `background`).
 
 Image failure cases (any row with an image): http URL (not shown, text-only),
 404 URL, slower than 10 s, larger than 5 MB. Each must still show the text.
+
+Image rows on iOS: use a physical device. Per the Firebase receive-messages
+page the iOS Simulator does not display notification images. The plugin's
+service extension has no delivery-metrics (BigQuery) export.
+
+Known gap (not a test failure): localization keys are not resolved. Send a
+notification message with only `title_loc_key`/`body_loc_key` (Android) or
+`title-loc-key`/`loc-key` (APNs): the OS shows it in the background, but
+`PushMessage.title`/`body` can be `null` on tap, and the Android foreground
+shows nothing (no `title`/`body`). Data-only messages are never localized.
 
 ## 2. Tap routing and duplicates
 
@@ -116,9 +133,19 @@ Image failure cases (any row with an image): http URL (not shown, text-only),
 - [ ] Decision maker that throws: error is logged, the next tap still works.
 - [ ] Topic: subscribe to "news", send to the topic, receive it.
 - [ ] Permission: denied and granted flows; Android 13+ shows the system prompt.
+      `requestPermission()` on Android 13+ after refusing returns `denied`
+      (never `notDetermined`); on iOS a fresh install returns `granted`,
+      `provisional` or `denied` after the prompt.
+- [ ] Foreground behavior: Android shows the plugin's local notification (use a
+      channel with high importance for a heads-up); iOS shows the OS banner for
+      a notification message, with alert/badge/sound.
 
 ## 7. Device-only risks to verify  **[DEFERRED RISK]**
 
+- [ ] **[DEFERRED RISK]** UIScene iOS apps: the official Firebase pages do not
+      cover UIScene; verify taps and foreground presentation in an app that
+      adopts `SceneDelegate` (Phase 1 investigation of
+      `configureNotificationCenterDelegate`).
 - [ ] **[DEFERRED RISK]** iOS cold-start tap arriving before the plugin
       registers: tap with the app killed and confirm the tap is not lost.
 - [ ] **[DEFERRED RISK]** Android vendor badges on Samsung, Xiaomi, Huawei and

@@ -146,12 +146,16 @@ Rules that make this correct:
 - FID (recommended by Firebase docs; do not mix FID APIs and the deprecated token APIs for registration management): Android meta-data `firebase_messaging_installation_id_enabled` = true inside `<application>`; iOS `Info.plist` key `FirebaseMessagingInstallationIdEnabled` = true. Auto-init can be disabled with `FirebaseMessagingAutoInitEnabled` = NO (iOS) or `firebase_messaging_auto_init_enabled` and `firebase_analytics_collection_enabled` = false (Android); then `register()` must be called `autoRegister` (the default) does this at `init`.
 - Android: Android 7.0+ (API 24) with Google Play services (or an emulator with Google APIs); optionally check with `GoogleApiAvailability.makeGooglePlayServicesAvailable()`. `POST_NOTIFICATIONS` permission (13+), default channel meta-data for FCM notification messages (`com.google.firebase.messaging.default_notification_channel_id`) matching `defaultChannelId`, small icon.
 - Firebase must be configured natively (`google-services.json` / `GoogleService-Info.plist`); the background isolate calls `Firebase.initializeApp()` without options, which relies on that.
+- Background messages (receive-messages page): the handler must be top-level, not anonymous, `@pragma('vm:entry-point')`, call `Firebase.initializeApp()` if it uses other Firebase services, touch no app state or UI, and stay short (the OS may kill the process after about 30 s). Android runs it in a spawned isolate; iOS/macOS need no separate isolate. Not delivered if the app was never opened, swiped away in the iOS app switcher, or force-stopped on Android (until reopened).
+- Foreground: per the page, notification messages show nothing visible by default. Android needs a high-priority channel; iOS needs presentation options (the plugin sets alert/badge/sound at `init`, and shows foreground messages itself on Android).
+- Permissions: required on iOS and Android 13+. `requestPermission()` always prompts; Android never returns `notDetermined`, and a refused `POST_NOTIFICATIONS` yields `denied`.
+- Images (iOS): the page uses Firebase's `Messaging.serviceExtension().populateNotificationContent`; the plugin's `PushNotificationsServiceExtension` has its own downloader (https-only, JPEG/PNG/GIF) and does not export delivery metrics to BigQuery. The iOS Simulator does not display notification images (per the page): test on a device.
 
 ## Constraints
 
 - Dart/Flutter: latest stable. Pin the latest `firebase_core`, `firebase_messaging`, `flutter_local_notifications` from pub.dev at scaffold time.
 - Platforms: Android (7.0+/API 24, Google Play services required), iOS (APNs key uploaded, method swizzling enabled).
-- Setup text checked against the Firebase Flutter FCM get-started page (last updated 2026-10-28).
+- Setup text checked on 2026-11-21 against the Firebase Flutter FCM get-started and receive-messages pages (neither shows a last-updated date). Neither page covers UIScene / SceneDelegate or `configureNotificationCenterDelegate`; that is a Phase 1 investigation. Not resolved by the plugin: localization keys (`title_loc_key`/`body_loc_key`, `title-loc-key`/`loc-key`); see the README known gap.
 - iOS packaging: Swift Package Manager only (no CocoaPods podspec). The Notification Service Extension class ships as a separate Flutter-free SwiftPM product so an extension target can depend on it.
 - The app must call `Firebase.initializeApp()` before `PushNotifications.init`.
 

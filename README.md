@@ -197,7 +197,7 @@ if (t != null) await api.savePlatformToken(t);
   notifications (request permission and set up push on iOS first). iOS
   simulators may never return one.
 * The Firebase docs ([get-started page](https://firebase.google.com/docs/cloud-messaging/flutter/get-started),
-  last updated 2026-10-28) state that in iOS SDK 10.4.0 and higher the APNs
+  checked 2026-11-21) state that in iOS SDK 10.4.0 and higher the APNs
   token must be available before making API requests, so on Apple platforms
   make sure `getAPNSToken()` is non-null before FCM plugin calls. In
   firebase_messaging 17.x the iOS `getToken()` throws `apns-token-not-set`
@@ -297,9 +297,10 @@ small thumbnail as the large icon, and the expanded view shows the picture once.
 
 ## Platform setup
 
-Checked against the Firebase Flutter FCM get-started page (last updated
-2026-10-28): <https://firebase.google.com/docs/cloud-messaging/flutter/get-started>.
-Unless labeled "(this plugin)", an item summarizes that page. Items labeled
+Checked on 2026-11-21 against the Firebase Flutter FCM
+[get-started](https://firebase.google.com/docs/cloud-messaging/flutter/get-started)
+and [receive-messages](https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages)
+pages (neither page shows a last-updated date). Unless labeled "(this plugin)", an item summarizes that page. Items labeled
 "(this plugin)" come from this plugin or its dependencies, not from that page
 (for example notification permission on Android 13+, default channel and icon,
 desugaring, Swift Package Manager and the app delegate).
@@ -331,6 +332,13 @@ desugaring, Swift Package Manager and the app delegate).
      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
    }
    ```
+
+   **UIScene apps (placeholder).** The official Firebase get-started and
+   receive-messages pages do not cover UIScene / `SceneDelegate` apps. The
+   `FLTFirebaseMessagingPlugin configureNotificationCenterDelegate` method
+   (documented only in the firebase_messaging plugin's own header, not on the
+   Firebase pages) is under investigation in Phase 1 of this plugin's roadmap.
+   Until then, the `AppDelegate` guidance above is unchanged.
 
 5. (this plugin) The plugin supports Swift Package Manager only (no CocoaPods). Enable it with
    `flutter config --enable-swift-package-manager`.
@@ -484,17 +492,115 @@ Firebase Installation ID (from `onRegistered` / `installationId`) or FCM
 registration token (from `token`) into the field "Add a Firebase Installation
 ID or FCM registration token".
 
-### Background handler caveats
+### Background handler
 
-- The hook must be a top-level function (annotate with
-  `@pragma('vm:entry-point')`); otherwise it is logged and not run.
-- The background isolate cannot touch UI or app state.
+Rules from the Firebase
+[receive-messages](https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages)
+page for a background message handler:
+
+- It must be a top-level function (not an anonymous function and not a method),
+  annotated with `@pragma('vm:entry-point')`.
+- If it uses other Firebase services, it must call `Firebase.initializeApp()`.
+- It runs outside your app's state: it cannot update app state or run UI logic.
+- Keep the work short. The page says the OS may kill the process if background
+  tasks run longer than 30 seconds.
+- On Android the handler runs in a separate isolate that the plugin spawns. On
+  iOS and macOS the page says no separate isolate is required.
+
+How this plugin relates to those rules (this plugin, not from the Firebase page):
+
+- `init` registers its own top-level handler, so you do not register one with
+  `FirebaseMessaging.onBackgroundMessage`. Your optional `onBackgroundMessage`
+  hook must be top-level (annotate it with `@pragma('vm:entry-point')`);
+  otherwise it is logged and not run. The plugin calls `Firebase.initializeApp()`
+  (without options) before your hook runs, so you do not need to.
 - Duplicate suppression is by `messageId`, process-local, and recorded only after
   a successful show (a failed show can be retried by a redelivery). A message
   without a `messageId` gets a unique generated id each time, so it is never
   deduplicated.
 - On iOS a data-only push needs `content-available: 1` and the OS throttles
   delivery.
+
+### When background messages arrive (device state)
+
+Per the receive-messages page, these device states stop background messages
+from arriving:
+
+- The app must have been opened at least once.
+- iOS: if the user swipes the app away in the app switcher, background messages
+  are not delivered until the app is opened again.
+- Android: if the user force-stops the app from system settings, the same
+  applies until the app is reopened.
+
+Keep this in mind when a test "does not receive" a background message.
+
+### Foreground messages and permissions
+
+Foreground (receive-messages page): notification messages do not show a visible
+notification while the app is in the foreground by default. On Android a
+high-priority notification channel is needed to show one; on iOS the
+foreground presentation options must be set.
+
+What this plugin does about it (this plugin):
+
+- Android: with `showForegroundNotifications` (default `true`), the plugin shows
+  a local notification for a foreground message that has a `title` or `body`,
+  on the channel picked by the [channel rules](#channels-android). The channel's
+  importance is yours to set: use `Importance.high` or higher on the channel
+  for heads-up display (the README example uses `high` and `max`).
+- iOS: `init` calls `setForegroundNotificationPresentationOptions` with alert,
+  badge and sound all on, so the OS presents notification messages itself. The
+  plugin does not show a second one. Data-only messages get no OS presentation,
+  so the plugin posts them natively when they carry a `title` or `body`.
+
+Permissions: a notification permission is required on iOS and on Android 13+.
+`requestPermission()` asks for both (on Android it also requests
+`POST_NOTIFICATIONS`). The Firebase page notes that on Android 13+ a `denied`
+status can also mean the permission was never requested (undetermined). How
+`PushPermissionStatus` maps it (this plugin, from `requestPermission()`):
+
+- iOS: `authorized` -> `granted`, `provisional` -> `provisional`, `denied` ->
+  `denied`, `notDetermined` -> `notDetermined`.
+- Android: the same mapping of firebase_messaging's result, then `denied`
+  overrides it if the `POST_NOTIFICATIONS` request is refused. Android never
+  yields `notDetermined` from this call, because it always asks. So a `denied`
+  result after `requestPermission()` means the user refused or the system will
+  not prompt again, not "not asked yet". The plugin has no call that reads the
+  status without prompting.
+
+### Images and the iOS Notification Service Extension
+
+The Firebase receive-messages page builds iOS images on its Notification Service
+Extension flow with `Messaging.serviceExtension().populateNotificationContent`
+(from the Firebase iOS SDK). This plugin does not use that helper. Its
+`PushNotificationsServiceExtension` product (see
+[Notification Service Extension](#notification-service-extension-ios-images))
+has its own downloader: https-only, JPEG/PNG/GIF only (sniffed from content),
+10 s timeout, 5 MB cap. Differences you should know about:
+
+- It does not export delivery metrics to BigQuery. The Firebase page's delivery
+  metrics steps need Firebase's own helper; if you need them, use that helper in
+  your extension instead of this class.
+- The page says the iOS Simulator does not display notification images. Test
+  image notifications on a physical device.
+
+### Localized titles and bodies (known gap)
+
+The Firebase page shows localization keys in the payload: `title_loc_key` /
+`body_loc_key` (Android) and `title-loc-key` / `loc-key` (APNs). This plugin does
+not resolve them. `PushMessage.title` and `body` come from `notification.title` /
+`notification.body`, falling back to the `data` keys (`titleKey` / `bodyKey`). Consequences:
+
+- A notification message that has only localization keys still gets displayed by
+  the OS when the app is in the background or terminated (the OS or FCM SDK
+  resolves the keys), but its `PushMessage.title` / `body` can be `null` on tap.
+- In the Android foreground, such a message has no `title` or `body`, so the
+  plugin shows nothing for it.
+- Data-only messages are displayed from `data[titleKey]` / `data[bodyKey]`; the
+  plugin never localizes them. Send resolved text, or ship the localized
+  strings yourself.
+
+Tracked as a known gap in [the manual checklist](doc/MANUAL_TEST_CHECKLIST.md).
 
 ## Server payload examples
 
