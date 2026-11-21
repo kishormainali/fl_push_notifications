@@ -4,6 +4,7 @@
 # Repo-only material
 .superpowers/
 doc/superpowers/
+tool/
 
 # Flutter/Dart
 .dart_tool/

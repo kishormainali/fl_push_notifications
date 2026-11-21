@@ -550,9 +550,13 @@ cd ios/fl_push_notifications && PUSH_NOTIFICATIONS_CORE_ONLY=1 swift test
 
 ## Releasing
 
-1. Bump `version` in `pubspec.yaml` and add a matching `## X.Y.Z` section to `CHANGELOG.md`.
-2. Commit, then tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-3. The `Publish to pub.dev` workflow checks the tag against the pubspec version, runs the tests, publishes via OIDC and creates the GitHub release (pre-release when the version contains `-`).
+1. Bump `version` in `pubspec.yaml` and add a matching `## X.Y.Z` section to `CHANGELOG.md`. Check it locally with `tool/check_changelog.sh X.Y.Z`.
+2. Commit, then tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. Tag only after the bump and the CHANGELOG entry are on the commit you tag.
+3. The `Publish to pub.dev` workflow checks the tag against the pubspec version, requires a `## X.Y.Z` (or `## [X.Y.Z]`) heading in `CHANGELOG.md`, runs the tests, publishes via OIDC and creates the GitHub release (pre-release when the version contains `-`).
+
+The workflow is safe to re-run. It asks the pub.dev API whether `X.Y.Z` is already published; if so, the test and publish jobs are skipped and only the GitHub release is created (or updated). So re-pushing a tag for an already-published version only creates the GitHub release. If publishing fails or the run is cancelled, no release is created. If the pub.dev lookup itself fails (anything other than HTTP 200), the version is treated as not yet published and pub.dev rejects a real duplicate.
+
+0.1.0 was published manually and has no `v0.1.0` tag (tagging it would trigger the workflow for a version that is already live). The first tagged release is the next version.
 
 One-time setup on pub.dev (package admin > Automated publishing > GitHub Actions): repository `kishormainali/fl_push_notifications`, tag pattern `v{{version}}`, environment `pub.dev`.
 

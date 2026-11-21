@@ -6,6 +6,8 @@ name: Publish to pub.dev
 #   tag pattern: v{{version}}
 #   environment: pub.dev
 # Then publish by bumping pubspec.yaml + CHANGELOG.md and pushing a matching tag.
+# Re-pushing a tag for a version that is already on pub.dev skips the test and
+# publish jobs and only creates (or updates) the GitHub release.
 on:
   push:
     tags:
@@ -22,13 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.tag.outputs.version }}
+      already_published: ${{ steps.pubdev.outputs.already_published }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Check tag matches pubspec version
         id: tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${REF_NAME#v}"
           PUBSPEC_VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}')"
           echo "tag: $VERSION  pubspec: $PUBSPEC_VERSION"
           if [ "$VERSION" != "$PUBSPEC_VERSION" ]; then
@@ -37,11 +42,35 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Check CHANGELOG.md has an entry for this version
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: tool/check_changelog.sh "$VERSION"
+
+      # Only an HTTP 200 counts as "already published". Any other result
+      # (404, network error, timeout) is treated as not published, so the
+      # publish job runs and pub.dev itself rejects a real duplicate.
+      - name: Check whether this version is already on pub.dev
+        id: pubdev
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          status="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 20 --retry 2 \
+            "https://pub.dev/api/packages/fl_push_notifications/versions/${VERSION}" || true)"
+          echo "pub.dev returned HTTP ${status:-none} for fl_push_notifications $VERSION"
+          if [ "$status" = "200" ]; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Version $VERSION is already on pub.dev; skipping tests and publish."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ── 2. Verify tests pass before publishing ──────────────────────────────────
   test:
     name: Verify tests
     runs-on: ubuntu-latest
     needs: validate-version
+    if: needs.validate-version.outputs.already_published != 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +96,7 @@ jobs:
     name: Publish to pub.dev
     runs-on: ubuntu-latest
     needs: [validate-version, test]
+    if: needs.validate-version.outputs.already_published != 'true'
 
     # Must match the environment configured under:
     #   pub.dev package admin > Automated publishing > GitHub Actions
@@ -103,7 +133,19 @@ jobs:
   github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [validate-version, publish]
+    needs: [validate-version, test, publish]
+    # test and publish are skipped when the version is already on pub.dev; the
+    # release must still be created then. A skipped needed job would skip this
+    # job too, so a status function is required. `!failure()` is false when any
+    # needed job failed and `!cancelled()` when the run was cancelled, so a
+    # failed or cancelled publish never produces a release. The explicit result
+    # checks make the accepted states obvious: success, or skipped for the two
+    # jobs that are skipped on a re-pushed tag.
+    if: >-
+      ${{ !cancelled() && !failure()
+      && needs.validate-version.result == 'success'
+      && contains(fromJSON('["success","skipped"]'), needs.test.result)
+      && contains(fromJSON('["success","skipped"]'), needs.publish.result) }}
 
     permissions:
       contents: write   # Required to create a release via GITHUB_TOKEN
