@@ -35,8 +35,7 @@
   configured.
 * Docs: setup and troubleshooting text aligned with the Firebase Flutter get-started and
   receive-messages pages (background handler rules, device-state
-  preconditions, foreground behavior, permissions, images, a known gap for
-  localization keys, and a note on UIScene apps).
+  preconditions, foreground behavior, permissions, images, and a note on UIScene apps).
 * Log messages now use the `fl_push_notifications` prefix (Dart `debugPrint`,
   Android `Log` tags, iOS `NSLog`) instead of the old `push_notifications`.
   Storage, file and intent names are unchanged.
