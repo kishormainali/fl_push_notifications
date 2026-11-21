@@ -105,7 +105,7 @@ class ImageDownloader(private val cacheDir: File) {
     }
 
     companion object {
-        private const val TAG = "push_notifications"
+        private const val TAG = "fl_push_notifications"
         private const val MAX_REDIRECTS = 5
 
         /** https always; http only when [httpsOnly] is false; nothing else. */

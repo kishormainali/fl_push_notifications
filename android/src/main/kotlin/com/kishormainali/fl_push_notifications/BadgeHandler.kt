@@ -94,7 +94,7 @@ class BadgeHandler(
 
     companion object {
         const val KEY_COUNT = "push_notifications.badgeCount"
-        private const val TAG = "push_notifications"
+        private const val TAG = "fl_push_notifications"
 
         fun create(context: Context): BadgeHandler {
             val app = context.applicationContext

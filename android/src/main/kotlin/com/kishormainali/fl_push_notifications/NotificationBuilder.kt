@@ -94,7 +94,7 @@ object NotificationPlanner {
         return sb.append('"').toString()
     }
 
-    private const val TAG = "push_notifications"
+    private const val TAG = "fl_push_notifications"
 }
 
 /**
@@ -123,7 +123,7 @@ object LargeIconScaler {
         val (w, h) = targetSize(bitmap.width, bitmap.height)
         if (w == bitmap.width && h == bitmap.height) bitmap else Bitmap.createScaledBitmap(bitmap, w, h, true)
     } catch (e: Throwable) {
-        Log.w("push_notifications", "large icon thumbnail failed: $e")
+        Log.w("fl_push_notifications", "large icon thumbnail failed: $e")
         null
     }
 }

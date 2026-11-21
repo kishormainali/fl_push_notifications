@@ -263,7 +263,7 @@ class PushNotifications {
       handle = PluginUtilities.getCallbackHandle(hook)?.toRawHandle();
       if (handle == null) {
         debugPrint(
-          'push_notifications: onBackgroundMessage must be a top-level '
+          'fl_push_notifications: onBackgroundMessage must be a top-level '
           'function; the hook will not run in the background isolate',
         );
       }
@@ -306,7 +306,7 @@ class PushNotifications {
       );
     } catch (e) {
       // E.g. Firebase not initialized yet. Retried on the next listen.
-      debugPrint('push_notifications: cannot listen to token refresh: $e');
+      debugPrint('fl_push_notifications: cannot listen to token refresh: $e');
     }
   }
 
@@ -344,7 +344,7 @@ class PushNotifications {
       _attachFidListeners();
       await _messaging.register();
     } catch (e) {
-      debugPrint('push_notifications: register failed: $e');
+      debugPrint('fl_push_notifications: register failed: $e');
     }
   }
 
@@ -422,7 +422,9 @@ class PushNotifications {
     try {
       return await token;
     } catch (e) {
-      debugPrint('push_notifications: getPlatformToken: FCM token failed: $e');
+      debugPrint(
+        'fl_push_notifications: getPlatformToken: FCM token failed: $e',
+      );
       return null;
     }
   }
@@ -436,7 +438,7 @@ class PushNotifications {
         final t = await _messaging.getAPNSToken();
         if (t != null) return t;
       } catch (e) {
-        debugPrint('push_notifications: getAPNSToken failed: $e');
+        debugPrint('fl_push_notifications: getAPNSToken failed: $e');
       }
       final remaining = timeout - waited;
       if (remaining <= Duration.zero) return null;
@@ -482,7 +484,7 @@ class PushNotifications {
     try {
       await clearBadge();
     } catch (e) {
-      debugPrint('push_notifications: clearBadge failed: $e');
+      debugPrint('fl_push_notifications: clearBadge failed: $e');
     }
   }
 
@@ -597,7 +599,7 @@ class PushNotifications {
     final id = rm.messageId;
     if (id != null) {
       if (_displayed.contains(id)) {
-        debugPrint('push_notifications: duplicate message $id ignored');
+        debugPrint('fl_push_notifications: duplicate message $id ignored');
         return;
       }
       _displayed.add(id);
@@ -630,7 +632,7 @@ class PushNotifications {
         ),
       );
     } catch (e) {
-      debugPrint('push_notifications: foreground show failed: $e');
+      debugPrint('fl_push_notifications: foreground show failed: $e');
     }
   }
 
@@ -652,14 +654,14 @@ class PushNotifications {
         return;
       } catch (e) {
         debugPrint(
-          'push_notifications: native image show failed, text-only: $e',
+          'fl_push_notifications: native image show failed, text-only: $e',
         );
       }
     }
     try {
       await _local.show(m, id: stableLocalId(m.id));
     } catch (e) {
-      debugPrint('push_notifications: foreground show failed: $e');
+      debugPrint('fl_push_notifications: foreground show failed: $e');
     }
   }
 
@@ -684,7 +686,7 @@ class PushNotifications {
     }
     for (final m in launch) {
       if (lastIds.contains(m.id)) {
-        debugPrint('push_notifications: stale launch tap ${m.id} dropped');
+        debugPrint('fl_push_notifications: stale launch tap ${m.id} dropped');
         continue;
       }
       await _dispatcher.handleTap(m);

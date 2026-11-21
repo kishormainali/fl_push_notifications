@@ -168,7 +168,7 @@ class PushNotificationsPlugin : FlutterPlugin, ActivityAware, PluginRegistry.New
     }
 
     private companion object {
-        const val TAG = "push_notifications"
+        const val TAG = "fl_push_notifications"
         const val IMAGE_TIMEOUT_MS = 10_000L
         const val IMAGE_MAX_BYTES = 5L * 1024 * 1024
         const val MAX_IMAGE_EDGE = 2048

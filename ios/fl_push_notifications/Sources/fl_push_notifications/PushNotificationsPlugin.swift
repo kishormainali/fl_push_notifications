@@ -62,7 +62,7 @@ public class PushNotificationsPlugin: NSObject, FlutterPlugin {
           try await flutterApi.onNativeTap(payload: tap.payload, appWasActive: tap.appWasActive)
           done(true)
         } catch {
-          NSLog("push_notifications: onNativeTap not delivered, keeping it: \(error)")
+          NSLog("fl_push_notifications: onNativeTap not delivered, keeping it: \(error)")
           done(false)
         }
       }

@@ -52,7 +52,7 @@ internal fun deliverTapLive(
             keep(tap)
             throw e
         } catch (e: Exception) {
-            Log.w("push_notifications", "onNativeTap not delivered, keeping for launch: $e")
+            Log.w("fl_push_notifications", "onNativeTap not delivered, keeping for launch: $e")
             keep(tap)
         }
     }

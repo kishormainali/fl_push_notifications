@@ -8,7 +8,7 @@ struct SystemBadgeApplier: BadgeApplier {
     let work = {
       if #available(iOS 16.0, *) {
         UNUserNotificationCenter.current().setBadgeCount(count) { error in
-          if let error { NSLog("push_notifications: setBadgeCount failed: \(error)") }
+          if let error { NSLog("fl_push_notifications: setBadgeCount failed: \(error)") }
         }
       } else {
         (UIApplication.shared as IconBadgeNumberAccess).iconBadgeNumber = count

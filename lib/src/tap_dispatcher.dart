@@ -29,7 +29,7 @@ class TapDispatcher {
   /// before the tap is delivered when another flush is already running.
   Future<void> handleTap(PushMessage m) async {
     if (_seen.contains(m.id)) {
-      debugPrint('push_notifications: duplicate tap ${m.id} dropped');
+      debugPrint('fl_push_notifications: duplicate tap ${m.id} dropped');
       // Refresh recency for LRU.
       _seen
         ..remove(m.id)
@@ -60,7 +60,7 @@ class TapDispatcher {
     if (_decisionMaker == null) {
       if (_queue.isNotEmpty) {
         debugPrint(
-          'push_notifications: ERROR tap received but no '
+          'fl_push_notifications: ERROR tap received but no '
           'decisionMaker is set; ${_queue.length} tap(s) remain queued.',
         );
       }
@@ -78,7 +78,7 @@ class TapDispatcher {
         try {
           await _decisionMaker!(m);
         } catch (e, st) {
-          debugPrint('push_notifications: decisionMaker threw: $e\n$st');
+          debugPrint('fl_push_notifications: decisionMaker threw: $e\n$st');
         }
       }
     } finally {

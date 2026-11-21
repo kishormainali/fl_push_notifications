@@ -49,7 +49,7 @@ String resolveChannelId(
   if (candidate == null || candidate.isEmpty) return defaultId;
   if (known.contains(candidate)) return candidate;
   debugPrint(
-    'push_notifications: unknown channel "$candidate", using "$defaultId"',
+    'fl_push_notifications: unknown channel "$candidate", using "$defaultId"',
   );
   return defaultId;
 }
@@ -173,7 +173,7 @@ class PushMessage {
         );
       }
     } catch (e) {
-      debugPrint('push_notifications: corrupt local payload: $e');
+      debugPrint('fl_push_notifications: corrupt local payload: $e');
     }
     return PushMessage(
       id: generateMessageId(),

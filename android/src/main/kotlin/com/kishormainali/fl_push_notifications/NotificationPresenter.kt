@@ -60,6 +60,6 @@ class NotificationPresenter<I : Any>(
     }
 
     private companion object {
-        const val TAG = "push_notifications"
+        const val TAG = "fl_push_notifications"
     }
 }

@@ -20,7 +20,7 @@ Future<void> pushBackgroundHandler(RemoteMessage m) =>
 /// scope for v1, so this only logs.
 @pragma('vm:entry-point')
 Future<void> pushLocalBackgroundTap(NotificationResponse r) async {
-  debugPrint('push_notifications: background tap ${r.id} ignored');
+  debugPrint('fl_push_notifications: background tap ${r.id} ignored');
 }
 
 /// Single builder for native notification content, shared by the background
@@ -133,7 +133,7 @@ Future<void> handleBackgroundMessage(
       try {
         badge = await api.incrementBadge();
       } catch (e) {
-        debugPrint('push_notifications: incrementBadge failed: $e');
+        debugPrint('fl_push_notifications: incrementBadge failed: $e');
       }
     }
 
@@ -155,7 +155,9 @@ Future<void> handleBackgroundMessage(
       final empty =
           (content.title ?? '').isEmpty && (content.body ?? '').isEmpty;
       if (empty) {
-        debugPrint('push_notifications: data-only message has no title/body');
+        debugPrint(
+          'fl_push_notifications: data-only message has no title/body',
+        );
       } else {
         try {
           await api.showNotification(content);
@@ -167,7 +169,7 @@ Future<void> handleBackgroundMessage(
             }
           }
         } catch (e) {
-          debugPrint('push_notifications: showNotification failed: $e');
+          debugPrint('fl_push_notifications: showNotification failed: $e');
         }
       }
     }
@@ -181,18 +183,18 @@ Future<void> handleBackgroundMessage(
           await (initFirebase ?? _defaultInitFirebase)();
         } catch (e) {
           debugPrint(
-            'push_notifications: Firebase init failed, hook skipped: $e',
+            'fl_push_notifications: Firebase init failed, hook skipped: $e',
           );
           return;
         }
         final hook = (resolveHook ?? _defaultResolveHook)(handle);
         await hook?.call(m);
       } catch (e) {
-        debugPrint('push_notifications: background hook failed: $e');
+        debugPrint('fl_push_notifications: background hook failed: $e');
       }
     }
   } catch (e) {
-    debugPrint('push_notifications: background handler failed: $e');
+    debugPrint('fl_push_notifications: background handler failed: $e');
   } finally {
     if (claimed) _inFlight.remove(id);
   }

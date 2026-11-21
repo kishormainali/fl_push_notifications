@@ -108,7 +108,7 @@ public enum NotificationBuilder {
       return try UNNotificationAttachment(identifier: "image", url: copy, options: nil)
     } catch {
       try? fm.removeItem(at: copy)
-      NSLog("push_notifications: attachment failed, showing text-only: \(error)")
+      NSLog("fl_push_notifications: attachment failed, showing text-only: \(error)")
       return nil
     }
   }

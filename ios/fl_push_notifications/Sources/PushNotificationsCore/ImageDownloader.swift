@@ -104,7 +104,7 @@ public final class ImageDownloader: ImageDownloading {
   }
 
   private func fail(_ reason: String) -> URL? {
-    NSLog("push_notifications: image download skipped: \(reason)")
+    NSLog("fl_push_notifications: image download skipped: \(reason)")
     return nil
   }
 
