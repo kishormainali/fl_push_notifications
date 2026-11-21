@@ -391,6 +391,29 @@ void main() {
       expect(host.resolvedKeys, ['greet_body']);
     });
 
+    test(
+      'a tap on a localized notification carries the resolved text',
+      () async {
+        host.localized['greet_title'] = 'Hello';
+        host.localized['greet_body'] = 'Welcome back';
+        final p = await started();
+        msg.openedCtl.add(loc('l4'));
+        await pump();
+        expect(taps.single.title, 'Hello Ann');
+        expect(taps.single.body, 'Welcome back');
+        expect(p, isNotNull);
+      },
+    );
+
+    test('a launch tap carries the resolved text', () async {
+      host.localized['greet_title'] = 'Hello';
+      host.localized['greet_body'] = 'Welcome back';
+      msg.initial = loc('l5');
+      await started();
+      expect(taps.single.title, 'Hello Ann');
+      expect(taps.single.appState, PushAppState.terminated);
+    });
+
     test('unknown keys leave the message as before and do not throw', () async {
       final p = await started();
       final emitted = <PushMessage>[];

@@ -272,7 +272,14 @@ class PushNotifications {
       held.add(m);
       return;
     }
-    unawaited(_dispatcher.handleTap(_fromRemote(m, _liveTapState())));
+    final state = _liveTapState();
+    unawaited(() async {
+      final msg = await _withLocalizedText(
+        _fromRemote(m, state),
+        m.notification,
+      );
+      await _dispatcher.handleTap(msg);
+    }());
   }
 
   Future<void> _saveBackgroundConfig(
@@ -733,13 +740,27 @@ class PushNotifications {
     final launch = <PushMessage>[];
     final initial = await _messaging.getInitialMessage();
     if (initial != null) {
-      launch.add(_fromRemote(initial, PushAppState.terminated));
+      launch.add(
+        await _withLocalizedText(
+          _fromRemote(initial, PushAppState.terminated),
+          initial.notification,
+        ),
+      );
     }
     // Opened-app messages seen so far arrived before Dart could subscribe
     // normally: the app was launched by them. Same id as `initial` is
     // dropped by the dispatcher's dedupe.
-    for (final m in _heldOpened ?? const <RemoteMessage>[]) {
-      launch.add(_fromRemote(m, PushAppState.terminated));
+    // Index loop: more can arrive while it awaits, and they must stay held
+    // (not go live) until every launch tap is queued.
+    final held = _heldOpened ?? <RemoteMessage>[];
+    for (var i = 0; i < held.length; i++) {
+      final m = held[i];
+      launch.add(
+        await _withLocalizedText(
+          _fromRemote(m, PushAppState.terminated),
+          m.notification,
+        ),
+      );
     }
     _heldOpened = null;
     final localPayload = await _local.launchPayload();
