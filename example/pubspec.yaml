@@ -20,7 +20,7 @@ dependencies:
   # For Firebase.initializeApp(); fl_push_notifications re-exports RemoteMessage
   # and Importance, so firebase_messaging/flutter_local_notifications are not
   # needed as direct dependencies.
-  firebase_core: ^5.1.0
+  firebase_core: ^5.2.0
 
   fl_push_notifications:
     # When depending on this package from a real application you should use:

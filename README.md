@@ -15,10 +15,14 @@ the foreground, background and terminated states.
 
 ## Resolved dependency versions
 
-- firebase_core ^5.1.0
-- firebase_messaging ^17.0.1
+- firebase_core ^5.2.0
+- firebase_messaging ^17.1.0
 - flutter_local_notifications ^23.0.0
 - pigeon 29.1.1 (dev, pinned so CI regenerates identical output)
+
+Flutter: tested with 3.50.1 (latest stable at the time of writing). The
+supported floor is Flutter 3.47.x (`flutter: '>=3.47.0'`), checked in CI with
+3.47.8.
 
 ## Install
 
@@ -32,7 +36,7 @@ Or in `pubspec.yaml`:
 ```yaml
 dependencies:
   fl_push_notifications: ^0.1.0
-  firebase_core: ^5.1.0
+  firebase_core: ^5.2.0
 ```
 
 `fl_push_notifications` re-exports `RemoteMessage` (from `firebase_messaging`) and
@@ -163,7 +167,7 @@ final fid = push.installationId; // latest FID seen, or null so far
   There is no way to read the FID without the stream.
 * `unregister()` unregisters this app instance; `onUnregistered` then emits the
   FID that is no longer active, so remove it from your backend.
-* Semantics of firebase_messaging 17.0.1: `onRegistered` / `onUnregistered` are
+* Semantics of firebase_messaging 17.x: `onRegistered` / `onUnregistered` are
   plain broadcast streams without replay, so an event emitted while nobody
   listens is lost (hence listen first). `register()` is implemented on Android
   (FirebaseMessaging.register), iOS/macOS (`registerWithCompletion`) and web
@@ -185,7 +189,7 @@ if (t != null) await api.savePlatformToken(t);
 * It differs from `token`, which is always the FCM token on every platform.
 * On iOS the APNs token is polled every 250 ms for up to `apnsTimeout`
   (default 3 s; `Duration.zero` makes a single attempt). firebase_messaging
-  17.0.1 does not wait itself: `getAPNSToken()` returns `null` immediately
+  17.x does not wait itself: `getAPNSToken()` returns `null` immediately
   while APNs has not delivered a token.
 * It never throws: it returns `null` when the token is unavailable (errors are
   logged without the token), so you can call it again later.
@@ -196,7 +200,7 @@ if (t != null) await api.savePlatformToken(t);
   last updated 2026-10-28) state that in iOS SDK 10.4.0 and higher the APNs
   token must be available before making API requests, so on Apple platforms
   make sure `getAPNSToken()` is non-null before FCM plugin calls. In
-  firebase_messaging 17.0.1 the iOS `getToken()` throws `apns-token-not-set`
+  firebase_messaging 17.x the iOS `getToken()` throws `apns-token-not-set`
   instead of waiting when it is not.
 * The FID API (`register()` / `onRegistered` / `installationId`, see above) is
   the newer direct-send identifier.
